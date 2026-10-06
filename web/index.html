@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CRT-MEDIA</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="bezel" id="bezel">
+  <div class="screen" id="screen">
+
+    <!-- phosphor content -->
+    <div class="content" id="content">
+
+      <header class="hdr" id="hdr">
+        <span class="hdr-txt" id="hdrTxt" data-t="CRT-MEDIA // MEDIA CONTROL">CRT-MEDIA // MEDIA CONTROL</span>
+        <span class="hdr-right">
+          <span class="hdr-ver" id="hdrVer">v1.0</span>
+          <button class="hdr-close ctrl" id="btnClose" type="button" aria-label="Close" title="Close">
+            <span class="x" aria-hidden="true"></span>
+          </button>
+        </span>
+      </header>
+
+      <div class="statusline">
+        <span class="stxt" id="statusText">SRC:--  VOL:--  LINK:OK  CLK:--:--</span><span class="cursor" id="cursor" aria-hidden="true"></span>
+      </div>
+
+      <div class="rule"></div>
+
+      <section class="now" id="now">
+        <div class="artframe" id="artframe">
+          <canvas class="artcv" id="artcv" width="160" height="160" aria-label="Album artwork" role="img"></canvas>
+          <div class="artph" id="artph">
+            <div class="artph-in">
+              <span class="artph-t">NO ART</span>
+              <span class="artph-s">AWAITING SIGNAL</span>
+            </div>
+          </div>
+          <span class="tick tl" aria-hidden="true"></span>
+          <span class="tick tr" aria-hidden="true"></span>
+          <span class="tick bl" aria-hidden="true"></span>
+          <span class="tick br" aria-hidden="true"></span>
+          <span class="arttag" id="arttag">DEMO</span>
+        </div>
+
+        <div class="meta" id="meta">
+          <div class="mrow">
+            <span class="mlab">TTL</span>
+            <div class="clip"><span class="mtext" id="mTitle">--</span></div>
+          </div>
+          <div class="mrow">
+            <span class="mlab">ART</span>
+            <div class="clip"><span class="mtext" id="mArtist">--</span></div>
+          </div>
+          <div class="mrow">
+            <span class="mlab">ALB</span>
+            <div class="clip"><span class="mtext" id="mAlbum">--</span></div>
+          </div>
+          <div class="mrow">
+            <span class="mlab">ST&nbsp;</span>
+            <div class="clip"><span class="mtext st" id="mStatus">--</span></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="rule"></div>
+
+      <section class="prog" id="prog">
+        <span class="ptime" id="tElapsed">--:--</span>
+        <div class="pbar ctrl" id="pbar" role="slider" tabindex="-1"
+             aria-label="Seek position in track" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+             aria-valuetext="unavailable">
+          <div class="pbox">
+            <div class="ptrack" id="ptrack"></div>
+            <div class="pfill" id="pfill"></div>
+            <div class="phead" id="phead" aria-hidden="true"></div>
+          </div>
+        </div>
+        <span class="ptime r" id="tTotal">--:--</span>
+      </section>
+
+      <section class="transport" id="transport">
+        <button class="tb ctrl" id="btnPrev" type="button" aria-label="Previous track">
+          <span class="ic ic-prev" aria-hidden="true"></span>
+        </button>
+        <button class="tb ctrl tb-main" id="btnPlay" type="button" aria-label="Play or pause">
+          <span class="ic ic-play" aria-hidden="true"></span>
+        </button>
+        <button class="tb ctrl" id="btnNext" type="button" aria-label="Next track">
+          <span class="ic ic-next" aria-hidden="true"></span>
+        </button>
+
+        <div class="vol" id="vol">
+          <span class="vlab" id="volLab">VOL</span>
+          <div class="vbar ctrl" id="vbar" role="slider" tabindex="-1"
+               aria-label="System volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="vbox">
+              <div class="vtrack" id="vtrack"></div>
+              <div class="vfill" id="vfill"></div>
+            </div>
+          </div>
+          <span class="vpct" id="volPct">--%</span>
+        </div>
+      </section>
+
+      <!-- deliberately FAKE visualizer: its amplitude is the system volume
+           level that get_state() reports (the value the volume meter renders),
+           NOT analysed audio.  Honest about transport state - see the
+           visualizer block in app.js. -->
+      <section class="viz" id="viz" aria-hidden="true"></section>
+
+      <div class="spacer"></div>
+
+      <section class="sessions" id="sessions">
+        <span class="slab">SESS</span>
+        <div class="chips" id="chips"></div>
+        <button class="mute ctrl" id="btnMute" type="button" aria-label="Mute or unmute system volume">
+          <span id="muteTxt">MUTE</span>
+        </button>
+      </section>
+
+    </div>
+
+    <!-- boot overlay: typed POST lines, click to skip -->
+    <div class="boot" id="boot" aria-hidden="true">
+      <pre class="bootlines" id="bootLines"></pre>
+      <div class="bootskip">[ CLICK TO SKIP ]</div>
+    </div>
+
+    <!-- screen artifacts, above the content -->
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="scan" id="scan" aria-hidden="true"></div>
+  </div>
+
+  <!-- bottom-right resize grip (JS-tracked, keeps the frameless look) -->
+  <div class="grip ctrl" id="grip" title="Drag to resize" aria-hidden="true"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
