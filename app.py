@@ -155,6 +155,8 @@ SWP_NOACTIVATE = 0x0010
 SWP_SHOWWINDOW = 0x0040
 SWP_FRAMECHANGED = 0x0020
 
+SW_MINIMIZE = 6
+
 GWL_EXSTYLE = -20
 WS_EX_TOPMOST = 0x00000008
 WS_EX_TRANSPARENT = 0x00000020
@@ -1277,6 +1279,23 @@ class Widget:
         except Exception:
             pass
 
+    def minimize(self) -> bool:
+        """Minimize the frameless window.  Never raises."""
+        try:
+            if self.win is not None and hasattr(self.win, 'minimize'):
+                self.win.minimize()
+                return True
+        except Exception:
+            pass
+        hwnd = self.hwnd()
+        if not hwnd:
+            return False
+        try:
+            user32.ShowWindow(hwnd, SW_MINIMIZE)
+            return True
+        except Exception:
+            return False
+
     def stop_tray(self) -> None:
         try:
             if self.icon is not None:
@@ -1387,6 +1406,9 @@ class Api:
     def quit_app(self):
         self._w.quit()
         return True
+
+    def minimize_app(self):
+        return bool(self._w.minimize())
 
 
 # ---------------------------------------------------------------------------

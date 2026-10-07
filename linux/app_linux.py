@@ -1221,6 +1221,85 @@ class Widget:
     def _tray_quit(self, icon, item) -> None:
         self.quit()
 
+    # -- exit ---------------------------------------------------------------
+    def force_quit(self) -> None:
+        self._quitting = True
+        self._quit.set()
+        self._schedule_destroy()
+
+    def quit(self) -> None:
+        """Clean shutdown.  Safe to call from js_api, tray, or worker threads.
+
+        Heavy teardown (tray stop, media worker) is left to ``cleanup()`` after
+        ``webview.start`` returns.  Destroying the GTK window *inside* a live
+        js_api call is a known crash path on pywebview+GTK, so destroy is always
+        deferred onto the idle queue so the bridge can finish returning first.
+        """
+        if self._quitting:
+            return
+        self._quitting = True
+        self._quit.set()
+        try:
+            self.save_window_geometry()
+        except Exception:
+            traceback.print_exc()
+        self._schedule_destroy()
+
+    def _schedule_destroy(self) -> None:
+        """Destroy the window on the next GTK idle tick (never inline)."""
+
+        def _destroy():
+            try:
+                if self.win is not None:
+                    self.win.destroy()
+            except Exception:
+                traceback.print_exc()
+            return False
+
+        GLib = _GTK.get('GLib')
+        if GLib is None:
+            try:
+                GLib = _load_gtk()['GLib']
+            except Exception:
+                GLib = None
+        if GLib is not None:
+            try:
+                GLib.idle_add(_destroy)
+                return
+            except Exception:
+                traceback.print_exc()
+        # Last resort: best-effort direct destroy if GLib is unavailable.
+        try:
+            if self.win is not None:
+                self.win.destroy()
+        except Exception:
+            pass
+
+    def minimize(self) -> bool:
+        """Iconify / minimize the frameless window.  Never raises."""
+
+        def _do():
+            # Prefer pywebview's helper when present; fall back to GTK iconify.
+            try:
+                if self.win is not None and hasattr(self.win, 'minimize'):
+                    self.win.minimize()
+                    return True
+            except Exception:
+                pass
+            gw = self._gtk_window()
+            if gw is None:
+                return False
+            try:
+                gw.iconify()
+                return True
+            except Exception:
+                return False
+
+        try:
+            return bool(self._on_gtk(_do, default=False))
+        except Exception:
+            return False
+
     def stop_tray(self) -> None:
         try:
             if self.icon is not None:
@@ -1235,29 +1314,6 @@ class Widget:
             pass
         self.indicator = None
 
-    # -- exit ---------------------------------------------------------------
-    def force_quit(self) -> None:
-        self._quit.set()
-        try:
-            if self.win is not None:
-                self.win.destroy()
-        except Exception:
-            pass
-
-    def quit(self) -> None:
-        if self._quitting:
-            return
-        self._quitting = True
-        self._quit.set()
-        self.save_window_geometry()
-        self.stop_tray()
-        self.stop_media()
-        try:
-            if self.win is not None:
-                self.win.destroy()
-        except Exception:
-            pass
-
     def stop_media(self) -> None:
         try:
             if self.media is not None:
@@ -1266,6 +1322,7 @@ class Widget:
             pass
 
     def cleanup(self) -> None:
+        """Final teardown after the GTK loop has exited."""
         self.stop_tray()
         self.stop_media()
 
@@ -1346,8 +1403,13 @@ class Api:
         return self._w.resize_to(width, height)
 
     def quit_app(self):
+        # Return True immediately; quit() defers window destroy to GLib idle
+        # so we are not tearing down WebKit mid-bridge-call.
         self._w.quit()
         return True
+
+    def minimize_app(self):
+        return bool(self._w.minimize())
 
 
 # ---------------------------------------------------------------------------

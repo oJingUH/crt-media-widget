@@ -42,7 +42,7 @@
     transport: $('transport'), btnPrev: $('btnPrev'), btnPlay: $('btnPlay'), btnNext: $('btnNext'),
     vol: $('vol'), volLab: $('volLab'), vbar: $('vbar'), vfill: $('vfill'), volPct: $('volPct'),
     sessions: $('sessions'), chips: $('chips'), btnMute: $('btnMute'), muteTxt: $('muteTxt'),
-    boot: $('boot'), bootLines: $('bootLines'), btnClose: $('btnClose'), grip: $('grip'),
+    boot: $('boot'), bootLines: $('bootLines'), btnMin: $('btnMin'), btnClose: $('btnClose'), grip: $('grip'),
     viz: $('viz')
   };
 
@@ -564,8 +564,17 @@
     }
   });
 
-  /* header close control: same clean shutdown as the tray Quit item.
-     It is a real <button>, so the drag handler above skips it. */
+  /* header window chrome: minimize + close (same clean path as tray items).
+     Real <button>s, so the drag handler above skips them. */
+  if (D.btnMin) {
+    D.btnMin.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var b = bridge();
+      if (b && typeof b.minimize_app === 'function') {
+        try { b.minimize_app(); } catch (_) {}
+      }
+    });
+  }
   D.btnClose.addEventListener('click', function (e) {
     e.stopPropagation();
     var b = bridge();
@@ -892,7 +901,7 @@
     var pan = toRgb(panelBg);
     var cr = (txt && pan) ? Math.round(contrast(txt, pan) * 100) / 100 : null;
 
-    var sel = ['.bezel', '.screen', '.hdr', '.hdr-txt', '.hdr-right', '.hdr-close',
+    var sel = ['.bezel', '.screen', '.hdr', '.hdr-txt', '.hdr-right', '.hdr-min', '.hdr-close',
       '.statusline', '.cursor',
       '.content', '.now', '.artframe', '.artcv', '.meta', '.mrow', '.clip',
       '.prog', '.pbar', '.transport', '#btnPrev', '#btnPlay', '#btnNext',

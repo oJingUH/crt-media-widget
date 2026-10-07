@@ -173,6 +173,15 @@ else
   say "       every apt package is already installed"
 fi
 
+# Re-query after a possible apt install.  The pre-apt VENV_PKG_OK flag goes
+# stale the moment python3-venv is installed in the block above; trusting it
+# forced a pointless second setup run on stock Mint 22.
+if dpkg-query -W -f='${Status}' "$VENV_PACKAGE" 2>/dev/null | grep -q 'install ok installed'; then
+  VENV_PKG_OK=1
+else
+  VENV_PKG_OK=0
+fi
+
 if [[ $VENV_PKG_OK -eq 0 ]]; then
   die "$VENV_PACKAGE is still missing; python3 -m venv and uv venv both need it." \
       "$APT_CMD"

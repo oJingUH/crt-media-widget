@@ -1,0 +1,62 @@
+CRT-MEDIA Linux — fix notes (for this pack)
+==========================================
+
+Base: upstream v1.1.1
+Tested on: Linux Mint 22.3, Cinnamon, X11
+
+What was broken / what we fixed
+------------------------------
+1. setup.sh stopped after installing python3-venv
+   - Had to run setup twice on a stock Mint box
+   - Fix: re-check the package after apt, then continue
+
+2. Widget saw the player (e.g. Brave) but showed no title/artist and status stuck on unknown
+   - dbus-fast returns Variant-boxed values; they were never unwrapped
+   - Fix: unwrap Variants so metadata and PlaybackStatus read correctly
+
+3. Play / Pause / Next / Prev did nothing and failed with:
+   ImportError: cannot import name ObjectPath from dbus_fast
+   - dbus-fast 5.x removed ObjectPath; invoke() imported it on every call
+   - Fix: only touch object-path types when needed; plain Play/Pause/Next work again
+
+4. PlayPause alone is a no-op on Chromium/Brave for many tabs
+   - Fix: prefer Play() / Pause() from current status, fall back to PlayPause
+
+5. Close (X) crashed the app
+   - Window was destroyed inside the js_api call on GTK/WebKit
+   - Fix: defer destroy to GLib idle; tear down tray/media after the loop exits
+
+6. No minimize control
+   - Added a minimize button left of Close (same CRT chrome styling)
+
+How to install this pack
+------------------------
+  tar -xzf crt-media-widget-1.1.1-linux-fix.tar.gz
+  cd crt-media-widget-1.1.1-linux-fix
+  ./linux/selfcheck.sh
+  ./linux/setup.sh --no-autostart
+  ./linux/run.sh --debug
+
+If --no-autostart is not accepted:
+  ./linux/setup.sh
+  rm -f ~/.config/autostart/crt-media-widget.desktop
+  ./linux/run.sh --debug
+
+Usage tips
+----------
+- Start media in Brave / Firefox / Chromium first, then open the widget
+- Volume is system volume (PipeWire wpctl); transport is MPRIS
+- Next/Prev only work if the site exposes those actions
+- X11 session recommended (Mint Cinnamon default). Wayland: always-on-top / click-through limited
+
+Files touched vs stock 1.1.1
+----------------------------
+  linux/setup.sh
+  linux/media_linux.py
+  linux/app_linux.py
+  web/index.html
+  web/style.css
+  web/app.js
+  app.py          (Windows minimize parity; Linux pack still works without using it)
+
+Not a formal upstream release — local fix pack until these land on GitHub.
