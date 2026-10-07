@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>CRT-MEDIA</title>
+  <defs>
+    <linearGradient id="case" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5A6B63"/><stop offset="0.45" stop-color="#3C4C45"/><stop offset="1" stop-color="#24312B"/>
+    </linearGradient>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3C4C45"/><stop offset="1" stop-color="#18231E"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.8">
+      <stop offset="0" stop-color="#33FF66" stop-opacity="0.40"/>
+      <stop offset="0.55" stop-color="#1E7A34" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#06120A" stop-opacity="0.85"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity="0.5"/>
+    </radialGradient>
+  <pattern id="scan" width="4" height="6" patternUnits="userSpaceOnUse"><rect width="4" height="2" fill="#33FF66" opacity="0.13"/></pattern>
+  </defs>
+  <!-- neck + base (drawn first so the case overlaps the neck) -->
+  <path d="M113 190 h30 l9 24 h-48 z" fill="url(#base)" stroke="#0A1410" stroke-width="5" stroke-linejoin="round"/>
+  <rect x="70" y="210" width="116" height="17" rx="6" fill="url(#base)" stroke="#0A1410" stroke-width="5"/>
+  <!-- case -->
+  <rect x="20" y="26" width="216" height="172" rx="20" fill="url(#case)" stroke="#0A1410" stroke-width="6"/>
+  <!-- recessed bezel -->
+  <rect x="37" y="42" width="182" height="128" rx="13" fill="#0A1B0F" stroke="#0E1F17" stroke-width="4"/>
+  <!-- screen -->
+  <rect x="47" y="52" width="162" height="108" rx="8" fill="#06120A"/>
+  <rect x="47" y="52" width="162" height="108" rx="8" fill="url(#glow)"/>
+  <rect x="47" y="52" width="162" height="108" rx="8" fill="url(#scan)"/>
+  <!-- lines of terminal text + a block cursor -->
+  <g fill="#33FF66">
+    <rect x="60" y="68" width="84" height="9" rx="2" opacity="0.92"/>
+    <rect x="60" y="86" width="122" height="9" rx="2" opacity="0.7"/>
+    <rect x="60" y="104" width="58" height="9" rx="2" opacity="0.92"/>
+  </g>
+  <rect x="124" y="104" width="11" height="9" rx="1" fill="#A6FFB8"/>
+  <rect x="60" y="128" width="70" height="9" rx="2" fill="#33FF66" opacity="0.45"/>
+  <rect x="47" y="52" width="162" height="108" rx="8" fill="url(#vig)"/>
+  <!-- controls: power LED and two knobs -->
+  <circle cx="56" cy="185" r="6.5" fill="#33FF66" stroke="#0A1410" stroke-width="4"/>
+  <circle cx="184" cy="185" r="7.5" fill="#2A3A33" stroke="#0A1410" stroke-width="4"/>
+  <circle cx="204" cy="185" r="7.5" fill="#2A3A33" stroke="#0A1410" stroke-width="4"/>
+  <!-- plastic sheen -->
+  <path d="M34 32 h128 l-46 44 h-82 z" fill="#FFFFFF" opacity="0.07"/>
+</svg>

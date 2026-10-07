@@ -384,30 +384,189 @@ def run_preflight(report: bool = False, dialog: bool = True) -> int:
 
 
 # ---------------------------------------------------------------------------
-# icon (pixel-art CRT in the fixed palette)
+# icon (a Pillow rendering of assets/crt-monitor-small.svg)
 # ---------------------------------------------------------------------------
-def make_icon_image(size: int = 64):
+# The tray artwork is the 64-unit design of the shipped
+# ``assets/crt-monitor-small.svg`` (and its rasterised references,
+# ``assets/png/crt-monitor-small-*.png``): a case with a bevel, a recessed
+# bezel and screen filled with a green phosphor glow, three green lines of
+# "text", a power LED, a neck and a base - in the widget palette.  It is drawn
+# programmatically, not loaded: no asset is read at runtime, so the portable
+# bundle keeps working with no new file and no missing-file failure path.
+#
+# Every coordinate below is in the design's own 64-unit grid and scaled to the
+# requested size.  The drawing is done on a supersampled canvas and reduced
+# with a premultiplied LANCZOS downscale - that is what keeps the 16 px tray
+# icon (where the design's 3-unit outline is under one physical pixel) from
+# turning to mush, without any sub-pixel geometry ever being drawn directly.
+_SVG_UNITS = 64                     # design grid (the SVG's viewBox)
+_ICON_SS = 8                        # supersample factor
+
+_ICON_CASE = (0x5A, 0x6A, 0x62, 255)        # #5A6A62  case
+_ICON_CASE_DARK = (0x08, 0x11, 0x0D, 255)   # #08110D  dark case outline
+_ICON_NECK = (0x46, 0x56, 0x4E, 255)        # #46564E  neck / panel
+_ICON_BEZEL = (0x0A, 0x1B, 0x0F, 255)       # #0A1B0F  recessed bezel
+_ICON_SCREEN = (0x06, 0x12, 0x0A, 255)      # #06120A  screen interior
+_ICON_GREEN = (0x33, 0xFF, 0x66, 255)       # #33FF66  phosphor green
+_ICON_BAR_A = (0x5A, 0xFF, 0x8C, 255)       # #5AFF8C  top text bar
+_ICON_BAR_C = (0xA6, 0xFF, 0xB8, 255)       # #A6FFB8  bottom text bar
+# the screen's radial phosphor glow: the (t, rgba) stops of the SVG's #sg
+# gradient, which fills the screen rect (objectBoundingBox, r=0.85)
+_ICON_GLOW = ((0.0, (0x33, 0xFF, 0x66, 0.50)),
+              (0.6, (0x1E, 0x7A, 0x34, 0.25)),
+              (1.0, (0x06, 0x12, 0x0A, 0.90)))
+
+
+def _tray_icon_size() -> int:
+    """Pixel size to render the tray artwork at.
+
+    pystray serialises the image to a single-frame ICO and hands it to Win32
+    ``LoadImage(..., LR_DEFAULTSIZE)``, which loads it at the ``SM_CXICON``
+    system metric - measured on this machine, not assumed: a 16, 24, 48 or 64
+    px source all come back as a 32x32 HICON, only a 32 px source is used
+    natively.  Rendering at exactly that metric therefore means the artwork is
+    never resampled on its way into the notification area; the shell then does
+    the one clean downscale to the 16 px it paints at 100% scaling (and the
+    metric grows with DPI, so the 24/32 px a scaled display shows are covered
+    too).
+    """
+    sm_cxicon = 11
+    try:
+        n = int(user32.GetSystemMetrics(sm_cxicon))
+    except Exception:
+        n = 0
+    return n if 16 <= n <= 256 else 32
+
+
+def _screen_glow(w: int, h: int, u: float, box, mask_radius: int):
+    """The screen's radial phosphor glow, as an RGBA layer ``w`` x ``h``.
+
+    ``box`` is the screen's top-left in supersampled px and ``u`` the px per
+    design unit.  The gradient is elliptical (the SVG's objectBoundingBox
+    coords, centre 0.5/0.4, r 0.85) and is clipped to the screen's rounded
+    rect, so it never bleeds onto the bezel.
+    """
+    from PIL import Image, ImageChops, ImageDraw
+    gx, gy = box
+    cx, cy = 11 + 0.50 * 42, 12 + 0.40 * 27      # #sg centre, design units
+    rx, ry = 0.85 * 42, 0.85 * 27                # #sg radius, design units
+    glow = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    px = glow.load()
+    stops = _ICON_GLOW
+    for j in range(h):
+        dy = ((gy + j + 0.5) / u - cy) / ry
+        for i in range(w):
+            dx = ((gx + i + 0.5) / u - cx) / rx
+            t = (dx * dx + dy * dy) ** 0.5
+            if t > 1.0:
+                t = 1.0
+            for k in range(len(stops) - 1):
+                t0, c0 = stops[k]
+                t1, c1 = stops[k + 1]
+                if t <= t1:
+                    f = 0.0 if t1 == t0 else (t - t0) / (t1 - t0)
+                    px[i, j] = (
+                        int(round(c0[0] + (c1[0] - c0[0]) * f)),
+                        int(round(c0[1] + (c1[1] - c0[1]) * f)),
+                        int(round(c0[2] + (c1[2] - c0[2]) * f)),
+                        int(round(255 * (c0[3] + (c1[3] - c0[3]) * f))))
+                    break
+    mask = Image.new('L', (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1],
+                                           radius=mask_radius, fill=255)
+    glow.putalpha(ImageChops.multiply(glow.getchannel('A'), mask))
+    return glow
+
+
+def _downscale(img, size: int):
+    """LANCZOS downscale to ``size``, premultiplying alpha first.
+
+    Resizing straight RGBA blends the colour channels against the (0,0,0,0)
+    outside the silhouette and leaves a dark fringe on the antialiased edge;
+    premultiplying, resizing and unpremultiplying keeps it clean.
+    """
+    from PIL import Image, ImageChops
+    r, g, b, a = img.split()
+    pre = Image.merge('RGBA', (ImageChops.multiply(r, a),
+                               ImageChops.multiply(g, a),
+                               ImageChops.multiply(b, a), a))
+    pre = pre.resize((size, size), Image.LANCZOS)
+    src = pre.load()
+    out = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    dst = out.load()
+    for y in range(size):
+        for x in range(size):
+            rr, gg, bb, aa = src[x, y]
+            if aa:
+                dst[x, y] = (min(255, rr * 255 // aa), min(255, gg * 255 // aa),
+                             min(255, bb * 255 // aa), aa)
+    return out
+
+
+def make_icon_image(size: int = 0):
+    """The CRT-MEDIA tray icon: an old CRT monitor, drawn at ``size`` px.
+
+    ``size`` 0 (the default) means the size the notification area actually
+    shows - see :func:`_tray_icon_size`.  Returns an RGBA ``PIL.Image``
+    ``size`` x ``size``.  Geometry is scaled from the 64-unit design grid and
+    rendered on a supersampled canvas, so it is crisp at 16 px and faithful at
+    larger sizes alike.
+    """
     from PIL import Image, ImageDraw
-    bg = (6, 18, 10, 255)          # --bg
-    dim = (30, 122, 52, 255)       # --dim
-    base = (51, 255, 102, 255)     # --base
-    bright = (166, 255, 184, 255)  # --bright
-    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    size = max(8, min(256, int(size) or _tray_icon_size()))
+    u = _ICON_SS * size / float(_SVG_UNITS)      # supersampled px per unit
+    canvas = _ICON_SS * size
+
+    def U(*units):
+        """Design units -> supersampled px (rounded: crisp, no sub-pixel)."""
+        return [int(round(v * u)) for v in units]
+
+    def stroke(units):
+        """A stroke width in design units -> integer supersampled px."""
+        return max(1, int(round(units * u)))
+
+    img = Image.new('RGBA', (canvas, canvas), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([2, 3, size - 3, size - 4], radius=9, fill=bg, outline=dim, width=2)
-    # screen
-    d.rounded_rectangle([9, 11, size - 10, size - 19], radius=4,
-                        fill=(4, 12, 7, 255), outline=base, width=2)
-    # play triangle
-    d.polygon([(24, 21), (24, 41), (45, 31)], fill=base)
-    # scanlines over the screen region
-    for y in range(14, size - 20, 3):
-        d.line([(11, y), (size - 12, y)], fill=(0, 0, 0, 70))
-    # phosphor dot
-    d.rectangle([13, 15, 15, 17], fill=bright)
-    # stand
-    d.rectangle([size // 2 - 7, size - 10, size // 2 + 7, size - 7], fill=dim)
-    return img
+
+    def rrect(x0, y0, x1, y1, radius, fill=None, outline=None, width=0):
+        """Rounded rect with an SVG-style stroke centred on its boundary
+        (Pillow draws an outline inside the box, so the stroke box is grown
+        by half the width and the radius with it)."""
+        bx0, by0, bx1, by1 = U(x0, y0, x1, y1)
+        r = int(round(radius * u))
+        if fill is not None:
+            d.rounded_rectangle([bx0, by0, bx1, by1], radius=r, fill=fill)
+        if outline is not None and width > 0:
+            hw = width / 2.0
+            d.rounded_rectangle([bx0 - hw, by0 - hw, bx1 + hw, by1 + hw],
+                                radius=r + hw, outline=outline, width=width)
+
+    # neck + base first (the case overlaps the neck), as in the SVG
+    neck = U(26, 45, 38, 45, 42, 53, 22, 53)
+    d.polygon(neck, fill=_ICON_NECK)
+    d.line(list(neck) + neck[:2], fill=_ICON_CASE_DARK,
+           width=stroke(3), joint='curve')
+    rrect(16, 51, 48, 59, 3, _ICON_CASE, _ICON_CASE_DARK, stroke(3))
+    # case, recessed bezel, screen interior
+    rrect(3, 4, 61, 48, 8, _ICON_CASE, _ICON_CASE_DARK, stroke(3))
+    rrect(8, 9, 56, 42, 5, _ICON_BEZEL, _ICON_CASE_DARK, stroke(2))
+    rrect(11, 12, 53, 39, 3, _ICON_SCREEN)
+    # the green phosphor glow over the screen, clipped to its rounded rect
+    sx0, sy0, sx1, sy1 = U(11, 12, 53, 39)
+    img.alpha_composite(
+        _screen_glow(sx1 - sx0, sy1 - sy0, u, (sx0, sy0), int(round(3 * u))),
+        (sx0, sy0))
+    # three lines of phosphor "text", then the power LED
+    rrect(15, 17, 37, 22, 2, _ICON_BAR_A)        # #5AFF8C
+    rrect(15, 26, 47, 31, 2, _ICON_GREEN)        # #33FF66
+    rrect(15, 33, 29, 38, 2, _ICON_BAR_C)        # #A6FFB8
+    lx, ly = U(53, 45)
+    lr = int(round(3 * u))
+    d.ellipse([lx - lr, ly - lr, lx + lr, ly + lr], fill=_ICON_GREEN)
+    hw = stroke(2) / 2.0
+    d.ellipse([lx - lr - hw, ly - lr - hw, lx + lr + hw, ly + lr + hw],
+              outline=_ICON_CASE_DARK, width=stroke(2))
+    return _downscale(img, size)
 
 
 # ---------------------------------------------------------------------------
