@@ -8,6 +8,10 @@ Output (both re-runnable - the script wipes and rebuilds them):
     dist/CRT-MEDIA-<ver>-portable/       the bundle, runnable in place
     dist/CRT-MEDIA-<ver>-portable.zip    the distributable (prints size + sha256)
 
+``<ver>`` is read from the VERSION file at the project root - the single place
+the version lives, so nothing here has to be edited for a release.  Pass
+``--version X.Y.Z`` to override it for a one-off build.
+
 The bundle carries its own copy of the CPython *embeddable* runtime plus every
 wheel the app needs installed into it, so the machine it is copied to needs no
 Python, no pip and no compiler.
@@ -50,8 +54,38 @@ from pathlib import Path
 # what goes in
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = "1.0.0"
-BUNDLE_NAME = "CRT-MEDIA-%s-portable" % VERSION
+VERSION_FILE = ROOT / "VERSION"
+
+
+def read_version(override: str = None) -> str:
+    """The app version - from VERSION, or from --version for a one-off build.
+
+    The version lives in exactly one file so a release cannot ship a folder,
+    a zip and a README that disagree with each other.
+    """
+    if override:
+        version, source = override.strip(), "--version"
+    else:
+        source = VERSION_FILE.name
+        try:
+            version = VERSION_FILE.read_text(encoding="ascii").strip()
+        except UnicodeDecodeError as exc:
+            die("%s is not plain ASCII: %s" % (VERSION_FILE, exc))
+        except OSError as exc:
+            die("cannot read %s: %s" % (VERSION_FILE, exc))
+    if not version:
+        die("%s is empty - it must hold the version, e.g. 1.0.1" % source)
+    allowed = set("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                  "abcdefghijklmnopqrstuvwxyz.-+_")
+    if any(ch not in allowed for ch in version):
+        die("%s holds %r, which is not a usable version string"
+            % (source, version))
+    return version
+
+
+def bundle_name(version: str) -> str:
+    return "CRT-MEDIA-%s-portable" % version
+
 
 EMBED_URL = "https://www.python.org/ftp/python/{v}/python-{v}-embed-amd64.zip"
 # preferred version first, then the rest of the 3.14 line (the app is developed
@@ -61,7 +95,7 @@ VERSION_CANDIDATES = ["3.14.7", "3.14.6", "3.14.5", "3.14.4", "3.14.3", "3.14.2"
 
 APP_FILES = ["app.py", "media.py", "media_selftest.py"]
 APP_DIRS = ["web"]                       # includes web/fonts/
-DOC_FILES = ["README.md", "requirements.txt"]
+DOC_FILES = ["README.md", "requirements.txt", "VERSION"]
 FIRST_RUN_SRC = ROOT / "tools" / "PORTABLE-FIRST-RUN.txt"
 REQUIREMENTS = ROOT / "requirements.txt"
 
@@ -439,14 +473,14 @@ def prune(bundle: Path) -> None:
     step("pruned %d cache artefact(s) (__pycache__ / *.pyc)" % removed)
 
 
-def make_zip(bundle: Path, zip_path: Path) -> None:
+def make_zip(bundle: Path, zip_path: Path, name: str) -> None:
     if zip_path.exists():
         zip_path.unlink()
     step("zipping -> %s" % zip_path)
     files = sorted(p for p in bundle.rglob("*") if p.is_file())
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
         for p in files:
-            zf.write(p, "%s/%s" % (BUNDLE_NAME, p.relative_to(bundle).as_posix()))
+            zf.write(p, "%s/%s" % (name, p.relative_to(bundle).as_posix()))
     step("zipped %d files" % len(files))
 
 
@@ -456,14 +490,22 @@ def main(argv=None) -> int:
     ap.add_argument("--python-version", default=VERSION_CANDIDATES[0],
                     help="CPython 3.14.x embeddable build to bundle "
                          "(default: %(default)s)")
+    ap.add_argument("--version", default=None, metavar="X.Y.Z",
+                    help="version to stamp on the bundle folder and the zip "
+                         "name (default: the version in the VERSION file, "
+                         "e.g. 1.0.1)")
     args = ap.parse_args(argv)
 
+    app_version = read_version(args.version)
+    name = bundle_name(app_version)
     dist = ROOT / "dist"
-    bundle = dist / BUNDLE_NAME
-    zip_path = dist / ("%s.zip" % BUNDLE_NAME)
+    bundle = dist / name
+    zip_path = dist / ("%s.zip" % name)
     cache_dir = dist / ".cache"
 
     step("project root   %s" % ROOT)
+    step("app version    %s (from %s)" % (
+        app_version, "--version" if args.version else VERSION_FILE.name))
     step("bundle         %s" % bundle)
 
     if not REQUIREMENTS.is_file():
@@ -490,7 +532,7 @@ def main(argv=None) -> int:
     assemble(bundle)
     report = verify_bundle(bundle)
     prune(bundle)
-    make_zip(bundle, zip_path)
+    make_zip(bundle, zip_path, name)
 
     size = zip_path.stat().st_size
     digest = sha256_of(zip_path)
@@ -498,7 +540,7 @@ def main(argv=None) -> int:
     print()
     print("=" * 72)
     print("PORTABLE BUNDLE READY")
-    print("  version      %s  (bundled CPython %s)" % (VERSION, version))
+    print("  version      %s  (bundled CPython %s)" % (app_version, version))
     print("  bundle dir   %s" % bundle)
     print("  zip          %s" % zip_path)
     print("  zip size     %s (%d bytes)" % (human(size), size))

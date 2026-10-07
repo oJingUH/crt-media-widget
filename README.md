@@ -43,8 +43,8 @@ the media session your apps already publish; it does not play audio.
 |---|---|
 | **OS** | Windows 10 or Windows 11, **64-bit** only. |
 | **Python** | **Not needed for the portable build.** The from-source route needs CPython 3.11 or newer (developed and tested on 3.14; 3.10 cannot work because pythonnet publishes no wheel for it). Every dependency is a prebuilt wheel, so no C compiler is required. |
-| **WebView2 runtime** | Required — it renders the UI. Preinstalled on Windows 11. On Windows 10 you probably have it already through Edge; if the widget's window stays blank or never appears, install the free *Evergreen Standalone Installer* from <https://developer.microsoft.com/microsoft-edge/webview2/>. |
-| **.NET Framework 4.8** | Required by pywebview's window host. Preinstalled on fully updated Windows 10 and Windows 11. |
+| **WebView2 runtime** | Required — it renders the UI. Preinstalled on Windows 11. On Windows 10 you probably have it already through Edge; if the widget's window stays blank or never appears, install the free *Evergreen Standalone Installer* from <https://developer.microsoft.com/microsoft-edge/webview2/>. The widget checks for it at startup, before it opens a window, and says so in a dialog box if it is missing. |
+| **.NET Framework 4.8** | Required by pywebview's window host. Preinstalled on fully updated Windows 10 and Windows 11. Checked at startup like WebView2. |
 
 **About volume:** Windows' media session API (SMTC) exposes playback and
 metadata but nothing at all about loudness — there is no volume API on that
@@ -59,7 +59,8 @@ even when no media session is playing.
 
 ### The portable build — no Python required (recommended)
 
-Take `CRT-MEDIA-1.0.0-portable.zip` from the releases page, **extract it
+Take the portable zip from the releases page —
+<https://github.com/oJingUH/crt-media-widget/releases/latest> — **extract it
 anywhere** (Desktop, `C:\Tools`, a USB stick), and double-click:
 
 | Double-click | What it does |
@@ -78,10 +79,14 @@ To build that bundle yourself from a checkout:
 .venv\Scripts\python.exe tools\build_portable.py
 ```
 
-It produces `dist\CRT-MEDIA-1.0.0-portable\` and the matching `.zip`, and prints
-the archive's size and sha256. It downloads the CPython embeddable runtime from
-python.org, installs the wheels into it, and refuses to produce a bundle unless
-its own interpreter can import every dependency and read a live media session.
+It produces `dist\CRT-MEDIA-<VERSION>-portable\` and the matching `.zip` — with
+`VERSION` holding `1.0.1` that is `dist\CRT-MEDIA-1.0.1-portable.zip` — and
+prints the archive's size and sha256. The version comes from the `VERSION` file
+at the project root (one file, so the folder, the zip and the docs can never
+disagree); `--version 1.0.2` overrides it for a one-off build. It downloads the
+CPython embeddable runtime from python.org, installs the wheels into it, and
+refuses to produce a bundle unless its own interpreter can import every
+dependency and read a live media session.
 
 ### From source
 
@@ -211,6 +216,53 @@ A track with no artwork or no real timeline is normal, not an error.
 
 ---
 
+## If it will not start
+
+Three things can stop a first run on a machine that is not the one it was built
+on. All three are checked for or documented here before you have to guess.
+
+**Nothing happens at all when I double-click the launcher.** One of the widget's
+two Windows prerequisites is missing. The startup preflight now says so itself,
+in a dialog box *and* on stderr, before any window is created — the silent
+`.vbs` launcher hides the log completely, so the message is deliberately a
+dialog box. It names the missing piece and where to get it:
+
+| Missing | Install from |
+|---|---|
+| **Microsoft Edge WebView2 Runtime** (the engine that draws the window) | the free *Evergreen Standalone Installer* (x64), <https://developer.microsoft.com/microsoft-edge/webview2/> |
+| **.NET Framework 4.8 or newer** (pywebview's window host; needs `Release` 528040+) | <https://dotnet.microsoft.com/download/dotnet-framework/net48> |
+
+Install it, then start the widget again. The portable build needs neither Python
+nor administrator rights — those two components are the only things it expects
+to find already on the machine. The check only *reads* two registry keys and
+never installs anything. To see the raw values it read, run
+`python\python.exe app.py --preflight` inside the portable folder (or
+`.venv\Scripts\python.exe app.py --preflight` from a checkout): it exits 0 when
+both are present, 3 when one is not.
+
+**Windows or the antivirus flags the launcher instead of starting it.** A silent
+`.vbs` that starts a bundled `python.exe` is exactly the shape of thing
+SmartScreen and some antivirus products stop to ask about, and a downloaded zip
+carries the "mark of the web". Choose **More info** → **Run anyway** on the
+SmartScreen prompt, or start the widget with the **`CRT-MEDIA.bat`** launcher
+inside the portable folder (or `run.cmd` from a checkout) — same widget, with a
+visible console. For the record the widget installs nothing, needs no admin
+rights and writes only its window position under `%LOCALAPPDATA%`; that does not
+stop the first prompt.
+
+**The first second looks like it is settling, or the size is wrong once.**
+Startup drives the CSS viewport to exactly the target size. That correction is
+measured in CSS pixels and applied to the window size scaled by
+`window.devicePixelRatio` (logged in every `--debug` settle line), so display
+scaling other than 100% is handled in the maths. Honest limit: it was **measured
+only at 100% scaling** — the development machine runs at 100% and changing that
+to test 125/150/200% was not worth doing to the machine. The loop still verifies
+the final viewport at any scaling and refuses to remember a size it could not
+reach, so a scaling it cannot settle degrades to "not remembered", never to a
+corrupted remembered size.
+
+---
+
 ## Troubleshooting
 
 **The widget never appears, or its window is blank.**
@@ -283,7 +335,8 @@ environment by hand:
 | `requirements.txt` | Exact pins for every runtime dependency, all available as Windows x64 wheels. |
 | `setup.cmd` | One-time, no-admin, double-clickable from-source install: finds Python, builds `.venv`, installs the requirements and verifies the imports. |
 | `run.cmd`, `run.vbs` | Launchers (visible-debug / silent); both point at `setup.cmd` when `.venv` is missing. |
-| `tools/build_portable.py` | Builds the self-contained portable bundle (embeddable CPython + wheels + launchers) into `dist/`. |
+| `tools/build_portable.py` | Builds the self-contained portable bundle (embeddable CPython + wheels + launchers) into `dist/`, named after `VERSION`. |
+| `VERSION` | The single place the version lives: the bundle folder, the zip name and the release all follow it. |
 | `tools/PORTABLE-FIRST-RUN.txt` | The first-run note shipped inside the portable bundle. |
 | `tools/shot.py` | Screenshot harness that renders the page at 360x400 for visual review. |
 | `dev/e2e_probe.py` | End-to-end probe: viewport, live bridge, transport round-trip, click-through recovery, clean exit. |
@@ -291,8 +344,8 @@ environment by hand:
 Build output (never committed — `dist/` is in `.gitignore`):
 
 ```
-dist\CRT-MEDIA-1.0.0-portable\       # the runnable bundle
-dist\CRT-MEDIA-1.0.0-portable.zip    # the distributable
+dist\CRT-MEDIA-<VERSION>-portable\       # the runnable bundle
+dist\CRT-MEDIA-<VERSION>-portable.zip    # the distributable
 ```
 
 Configuration written at runtime:

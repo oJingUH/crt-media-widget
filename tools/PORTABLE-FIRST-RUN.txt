@@ -13,6 +13,11 @@ file. You do NOT need Python installed, and nothing is written into your
 Program Files or into the registry. This whole folder is disposable: delete it
 and nothing is left behind.
 
+This is the portable zip from the releases page. If you ever need a newer one,
+take the current zip from
+    https://github.com/oJingUH/crt-media-widget/releases/latest
+extract it the same way, and delete this folder.
+
 Start it (two clicks)
 ---------------------
     Double-click  CRT-MEDIA.vbs
@@ -35,13 +40,48 @@ Requirements
 ------------
 * Windows 10 or 11, 64-bit.
 * The Microsoft Edge WebView2 runtime. It is preinstalled on Windows 11; on
-  Windows 10 you may already have it from Edge. If the window is blank or the
-  widget does not appear at all, install the free "Evergreen Standalone
-  Installer" from
+  Windows 10 you may already have it from Edge. If it is missing, this build
+  says so itself in a dialog box when you start it (do not go looking for a
+  blank window). The free "Evergreen Standalone Installer" (x64) is at
       https://developer.microsoft.com/microsoft-edge/webview2/
-* .NET Framework 4.8. Preinstalled on fully updated Windows 10 and Windows 11.
+* .NET Framework 4.8 or newer. Preinstalled on fully updated Windows 10 and
+  Windows 11 - and reported by the same startup check if it is missing, with
+  the download at
+      https://dotnet.microsoft.com/download/dotnet-framework/net48
 
-Nothing else. No Python, no admin rights, no installer.
+Nothing else. No Python, no admin rights, no installer. The startup check does
+not install anything: it reads two registry keys and tells you what to do.
+
+If it will not start
+--------------------
+1) Nothing happens at all.  You should have seen a dialog box naming whichever
+   of the two requirements above is missing, with the download link in it - the
+   silent launcher (CRT-MEDIA.vbs) hides the log completely, which is exactly
+   why a missing component is reported in a dialog box instead.
+
+   To see what the check read, open a Command Prompt in this folder and run:
+
+       python\python.exe app.py --preflight
+
+   It prints the raw WebView2 version and .NET Release number it found, exits 0
+   when both are present and 3 when one is not.
+
+2) Windows SmartScreen or your antivirus stops it instead.  A silent script
+   that starts a python.exe it carries itself is the shape of thing SmartScreen
+   and some antivirus products stop to ask about, and a zip you downloaded
+   carries the "mark of the web". Click "More info" -> "Run anyway" on the
+   SmartScreen prompt, or start the widget with CRT-MEDIA.bat instead (same
+   widget, visible console). This build installs nothing, needs no admin rights
+   and writes only your window position - but that does not stop the first
+   prompt.
+
+3) The window looks the wrong size for a moment, or once it came up at the
+   wrong size.  Startup drives the viewport to exactly the target size, and the
+   correction is scaled by the display's device pixel ratio (the --debug settle
+   lines print it), so display scaling other than 100% is handled. Honest
+   limit: it has been measured at 100% scaling only. The loop verifies the
+   final size whatever the scaling, and will not remember a size it could not
+   reach.
 
 Where it keeps things
 ---------------------

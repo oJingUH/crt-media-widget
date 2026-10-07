@@ -12,7 +12,10 @@ always-on-top frameless desktop widget:
 * a pystray tray icon whose menu can always recover the widget from
   click-through;
 * a single-instance guard so a second launch exits instead of stacking a
-  second widget.
+  second widget;
+* a startup preflight for the two Windows components the widget cannot run
+  without (the WebView2 runtime and .NET Framework 4.8), reported in a dialog
+  box as well as on stderr so the silent launcher cannot fail invisibly.
 
 Launched by ``run.cmd`` (pythonw.exe) / ``run.vbs`` (startup folder).
 Everything here is primary-monitor only.  Nothing in this file imports a
@@ -30,6 +33,7 @@ import sys
 import threading
 import time
 import traceback
+import winreg
 
 # ---------------------------------------------------------------------------
 # debug diagnostics
@@ -82,6 +86,48 @@ SINGLETON_NAME = 'Local\\crt-media-widget-singleton'
 _local_appdata = os.environ.get('LOCALAPPDATA') or os.path.expanduser('~')
 APP_DIR = os.path.join(_local_appdata, 'crt-media-widget')
 POSITION_FILE = os.path.join(APP_DIR, 'position.json')
+
+# --- startup preflight -----------------------------------------------------
+# The two Windows components this widget cannot run without.  Both are read
+# only: nothing is installed, changed or repaired here, ever.
+#
+# WebView2 (the Chromium engine that draws the UI) publishes its version under
+# an EdgeUpdate client key - per-machine (the 32-bit view is where the
+# evergreen installer writes it) and per-user (installed for one account).
+# .NET Framework 4.8+ is identified by the Release DWORD of the v4 Full key;
+# 528040 is the 4.8 release value (Windows 11 and updated Windows 10 have
+# more).
+WEBVIEW2_GUID = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+WEBVIEW2_KEYS = (
+    (winreg.HKEY_LOCAL_MACHINE,
+     'SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\' + WEBVIEW2_GUID),
+    (winreg.HKEY_LOCAL_MACHINE,
+     'SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\' + WEBVIEW2_GUID),
+    (winreg.HKEY_CURRENT_USER,
+     'Software\\Microsoft\\EdgeUpdate\\Clients\\' + WEBVIEW2_GUID),
+)
+NETFX_KEYS = (
+    (winreg.HKEY_LOCAL_MACHINE,
+     'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full'),
+    (winreg.HKEY_LOCAL_MACHINE,
+     'SOFTWARE\\WOW6432Node\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full'),
+)
+NETFX_MIN_RELEASE = 528040                   # .NET Framework 4.8
+WEBVIEW2_URL = 'https://developer.microsoft.com/microsoft-edge/webview2/'
+NETFX_URL = 'https://dotnet.microsoft.com/download/dotnet-framework/net48'
+EXIT_MISSING_PREREQ = 3                      # distinct from 1 (running) / 2 (crash)
+
+# Test hooks for the preflight only - never needed to run the widget:
+#   CRT_PREFLIGHT_REG_ROOT=<path>  pretend HKLM/HKCU hold nothing under it
+#                                  (e.g. SOFTWARE\__no_such_root__) so the
+#                                  real "not installed" path can be shown
+#                                  without uninstalling anything;
+#   CRT_PREFLIGHT_FAKE_MISSING=webview2|dotnet|both   force that branch;
+#   CRT_PREFLIGHT_NO_DIALOG=1      print the message but skip the MessageBoxW
+#                                  (so an automated run cannot block on a modal).
+PREFLIGHT_REG_ROOT = os.environ.get('CRT_PREFLIGHT_REG_ROOT') or 'SOFTWARE'
+PREFLIGHT_FAKE = (os.environ.get('CRT_PREFLIGHT_FAKE_MISSING') or '').strip().lower()
+PREFLIGHT_NO_DIALOG = bool(os.environ.get('CRT_PREFLIGHT_NO_DIALOG'))
 
 # ---------------------------------------------------------------------------
 # win32
@@ -160,6 +206,181 @@ def acquire_single_instance():
         kernel32.CloseHandle(h)
         return None
     return h
+
+
+# ---------------------------------------------------------------------------
+# prerequisite preflight
+# ---------------------------------------------------------------------------
+# The widget needs the Edge WebView2 runtime (it *is* the renderer: without it
+# pywebview cannot create a window at all) and .NET Framework 4.8 (pywebview's
+# window host is WinForms).  Under the silent .vbs launcher a hard startup
+# failure is invisible - pythonw has no console and the launcher returns at
+# once - so a missing component is reported in a message box as well as on
+# stderr, with what to install and where from, and exits 3.
+def _exc_name(exc) -> str:
+    return '%s: %s' % (type(exc).__name__, exc)
+
+
+def _preflight_path(path: str) -> str:
+    """Apply the CRT_PREFLIGHT_REG_ROOT test override (identity by default)."""
+    if PREFLIGHT_REG_ROOT.upper() == 'SOFTWARE':
+        return path
+    if path.upper().startswith('SOFTWARE\\') or path.upper() == 'SOFTWARE':
+        return PREFLIGHT_REG_ROOT + path[len('SOFTWARE'):]
+    return path
+
+
+def _reg_label(hive, path: str) -> str:
+    """HKLM\\... / HKCU\\... - the hive matters when reading the same subkey."""
+    name = {winreg.HKEY_LOCAL_MACHINE: 'HKLM',
+            winreg.HKEY_CURRENT_USER: 'HKCU'}.get(hive, 'HKEY')
+    return '%s\\%s' % (name, path)
+
+
+def _preflight_override(which: str, ok: bool, detail: str):
+    """Apply the CRT_PREFLIGHT_FAKE_MISSING test override to a result.
+
+    ``which`` is 'webview2' or 'dotnet'.  The override flips only the verdict -
+    the registry is still read (and its raw value reported), so the test can
+    prove the *message and exit code* of a machine that lacks a component
+    without that machine being uninstalled, renamed or otherwise touched.
+    """
+    if PREFLIGHT_FAKE in (which, 'both'):
+        return False, ('forced MISSING by CRT_PREFLIGHT_FAKE_MISSING=%s '
+                       '[registry said: %s]' % (PREFLIGHT_FAKE, detail))
+    if PREFLIGHT_FAKE in ('webview2', 'dotnet') and PREFLIGHT_FAKE != which:
+        return True, ('forced PRESENT by CRT_PREFLIGHT_FAKE_MISSING=%s '
+                      '[registry said: %s]' % (PREFLIGHT_FAKE, detail))
+    return ok, detail
+
+
+def check_webview2():
+    """(ok, detail) for the Edge WebView2 runtime; detail is the raw value read."""
+    tried = []
+    ok, detail = False, ''
+    for hive, path in WEBVIEW2_KEYS:
+        p = _preflight_path(path)
+        label = _reg_label(hive, p)
+        try:
+            with winreg.OpenKey(hive, p, 0, winreg.KEY_READ) as key:
+                try:
+                    pv, _kind = winreg.QueryValueEx(key, 'pv')
+                except OSError:
+                    pv = None
+        except OSError as exc:
+            tried.append('%s -> %s' % (label, _exc_name(exc)))
+            continue
+        version = str(pv).strip() if pv is not None else ''
+        if version and version != '0.0.0.0':
+            ok, detail = True, '%s pv=%s' % (label, version)
+            break
+        tried.append('%s -> pv=%r' % (label, pv))
+    if not ok:
+        detail = '; '.join(tried) or 'no WebView2 client key found'
+    return _preflight_override('webview2', ok, detail)
+
+
+def check_dotnet():
+    """(ok, detail) for .NET Framework 4.8+; detail is the raw Release value."""
+    tried = []
+    ok, detail = False, ''
+    for hive, path in NETFX_KEYS:
+        p = _preflight_path(path)
+        label = _reg_label(hive, p)
+        try:
+            with winreg.OpenKey(hive, p, 0, winreg.KEY_READ) as key:
+                try:
+                    rel, _kind = winreg.QueryValueEx(key, 'Release')
+                except OSError:
+                    rel = None
+                if rel is None:
+                    try:
+                        ver, _kind = winreg.QueryValueEx(key, 'Version')
+                    except OSError:
+                        ver = None
+                    tried.append('%s -> Release absent, Version=%r' % (label, ver))
+                    continue
+        except OSError as exc:
+            tried.append('%s -> %s' % (label, _exc_name(exc)))
+            continue
+        try:
+            release = int(rel)
+        except (TypeError, ValueError):
+            tried.append('%s -> Release=%r (not a number)' % (label, rel))
+            continue
+        if release >= NETFX_MIN_RELEASE:
+            ok, detail = True, '%s Release=%d' % (label, release)
+            break
+        tried.append('%s -> Release=%d (below %d)'
+                     % (label, release, NETFX_MIN_RELEASE))
+    if not ok:
+        detail = '; '.join(tried) or 'no .NET Framework v4 Full key found'
+    return _preflight_override('dotnet', ok, detail)
+
+
+def preflight_results():
+    """{'webview2': (ok, detail), 'dotnet': (ok, detail)} - read-only."""
+    wv = check_webview2()
+    net = check_dotnet()
+    return {'webview2': wv, 'dotnet': net}
+
+
+def preflight_message(results) -> str:
+    """The text a stranger reads: what is missing, what to install, from where."""
+    lines = ['CRT-MEDIA cannot start: this machine is missing a Windows '
+             'component the widget needs.', '']
+    if not results['webview2'][0]:
+        lines += [
+            '* Microsoft Edge WebView2 Runtime - not found.',
+            '  It is the engine that draws the widget window, so nothing can be',
+            '  shown without it. Install the free "Evergreen Standalone',
+            '  Installer" (x64) from:',
+            '      ' + WEBVIEW2_URL,
+            '',
+        ]
+    if not results['dotnet'][0]:
+        lines += [
+            '* .NET Framework 4.8 or newer - not found (needs Release %d or'
+            % NETFX_MIN_RELEASE,
+            '  higher; this machine reports none). Download the runtime from:',
+            '      ' + NETFX_URL,
+            '',
+        ]
+    lines += [
+        'Install the missing piece(s) above, then start CRT-MEDIA again.',
+        'The portable build needs neither Python nor administrator rights -',
+        'these two Windows components are the only things it expects to find',
+        'on the machine already.',
+        '',
+        'Nothing was installed, changed or repaired by this program.',
+    ]
+    return '\n'.join(lines)
+
+
+def run_preflight(report: bool = False, dialog: bool = True) -> int:
+    """Check the two components.  0 when both are present, 3 when not.
+
+    ``report`` prints the raw values even outside --debug (used by the
+    --preflight flag); otherwise they only show up under --debug.  A failure is
+    always printed to stderr and shown in a message box (unless the
+    CRT_PREFLIGHT_NO_DIALOG test override is set), because the silent launcher
+    hides stderr completely.
+    """
+    results = preflight_results()
+    for name, (ok, detail) in results.items():
+        _dbg('preflight %s: %s (%s)'
+             % (name, 'present' if ok else 'MISSING', detail))
+        if report:
+            print('[crt] preflight %s: %s  %s'
+                  % (name, 'present' if ok else 'MISSING', detail), flush=True)
+    if results['webview2'][0] and results['dotnet'][0]:
+        return 0
+    text = preflight_message(results)
+    print(text, file=sys.stderr, flush=True)
+    if dialog and not PREFLIGHT_NO_DIALOG:
+        message_box(text)
+    return EXIT_MISSING_PREREQ
+
 
 
 # ---------------------------------------------------------------------------
@@ -564,17 +785,60 @@ class Widget:
     # viewport is read back instead of assumed: a stale read must never be taken
     # for an achieved resize, and a non-target size must never be accepted as
     # settled.
+    #
+    # Units: the error is measured in CSS pixels (window.innerWidth) but applied
+    # to the window size, which is whatever unit pywebview reports for this
+    # window.  At devicePixelRatio 1 those are the same unit and the correction
+    # is applied verbatim - the behaviour verified on a 100% display.  Where the
+    # two are NOT the same unit (a window whose reported size is in device
+    # pixels, i.e. the Chromium device scale factor and the window's DPI scale
+    # disagree) the same pixel error is a bigger move in window units, by
+    # exactly devicePixelRatio, and without that factor the loop only converges
+    # asymptotically - measured: 5 steps at 1.5x instead of 2.  The device
+    # pixel ratio is read in the same round trip as the viewport and reported in
+    # every settle line under --debug.
     def _read_viewport(self):
-        """(innerWidth, innerHeight) in CSS px, or None."""
+        """(innerWidth, innerHeight, devicePixelRatio) or None.
+
+        One round trip; the ratio is read with the size so a resize can never be
+        applied to a stale ratio.
+        """
         try:
             vp = json.loads(self.win.evaluate_js(
-                'JSON.stringify([window.innerWidth, window.innerHeight])'))
-            out = (int(vp[0]), int(vp[1]))
+                'JSON.stringify([window.innerWidth, window.innerHeight,'
+                ' window.devicePixelRatio])'))
+            dpr = float(vp[2]) if len(vp) > 2 and vp[2] else 1.0
+            if not (dpr > 0):
+                dpr = 1.0
+            out = (int(vp[0]), int(vp[1]), dpr)
         except Exception as exc:
             _dbg('viewport read failed: %s: %s' % (type(exc).__name__, exc))
             return None
-        _dbg('settle read: viewport %dx%d' % out)
+        _dbg('settle read: viewport %dx%d dpr %g' % out)
         return out
+
+    @staticmethod
+    def _window_unit_scale(win_px, css_px, dpr) -> float:
+        """Window-size units per CSS pixel for this window.
+
+        1.0 - the historical, verified behaviour - unless the size pywebview
+        reports for the window is in device pixels rather than the CSS pixels
+        the viewport is measured in, in which case the CSS error has to be
+        converted into window units by devicePixelRatio before it is applied.
+        The two regimes are told apart from the values themselves (the reported
+        window size against the viewport width read in the same step), so the
+        correction can only ever be multiplied by a ratio the window really is
+        showing; at dpr 1 the factor is 1.0 by construction, so a 100% display
+        keeps the exact behaviour verified before this change.
+        """
+        try:
+            unit = float(win_px) / float(css_px)
+            ratio = float(dpr)
+        except (TypeError, ValueError, ZeroDivisionError):
+            return 1.0
+        if ratio > 1.0 and unit > 1.05 and abs(unit - ratio) < 0.25:
+            return ratio
+        return 1.0
 
     def _stable_viewport(self, timeout, changed_from=None):
         """Read the viewport until the same value comes back twice in a row.
@@ -588,7 +852,9 @@ class Widget:
         while True:
             cur = self._read_viewport()
             if cur is not None:
-                if last == cur and (changed_from is None or cur != changed_from):
+                if (last is not None and cur[:2] == last[:2]
+                        and (changed_from is None
+                             or cur[:2] != changed_from[:2])):
                     return cur
                 last = cur
             if time.monotonic() >= deadline:
@@ -612,9 +878,9 @@ class Widget:
             return None
         repeats = {}
         for step in range(SETTLE_MAX_STEPS):
-            if vp == want:
-                _dbg('settle: viewport is the target %dx%d (step %d)'
-                     % (want[0], want[1], step))
+            if vp[:2] == want:
+                _dbg('settle: viewport is the target %dx%d dpr %g (step %d)'
+                     % (want[0], want[1], vp[2], step))
                 return want
             try:
                 cur_w, cur_h = int(self.win.width), int(self.win.height)
@@ -622,29 +888,33 @@ class Widget:
                 _dbg('settle: window size read failed: %s: %s'
                      % (type(exc).__name__, exc))
                 return None
-            nw, nh = self._clamped_size(cur_w + (want[0] - vp[0]),
-                                        cur_h + (want[1] - vp[1]))
+            unit = self._window_unit_scale(cur_w, vp[0], vp[2])
+            nw, nh = self._clamped_size(cur_w + int(round((want[0] - vp[0]) * unit)),
+                                        cur_h + int(round((want[1] - vp[1]) * unit)))
             if (nw, nh) == (cur_w, cur_h):
                 _dbg('settle[%d]: resize would be a no-op (%dx%d), viewport %dx%d '
                      'window %dx%d - stopping instead of spinning'
                      % (step, nw, nh, vp[0], vp[1], cur_w, cur_h))
                 break
-            _dbg('settle[%d]: read %dx%d want %dx%d window %dx%d -> resize(%d,%d)'
-                 % (step, vp[0], vp[1], want[0], want[1], cur_w, cur_h, nw, nh))
+            _dbg('settle[%d]: read %dx%d want %dx%d window %dx%d dpr %g '
+                 'unit-scale %g -> resize(%d,%d)'
+                 % (step, vp[0], vp[1], want[0], want[1], cur_w, cur_h, vp[2],
+                    unit, nw, nh))
             self.win.resize(nw, nh)
             nxt = self._stable_viewport(SETTLE_READ_TIMEOUT, changed_from=vp)
             if nxt is None:
                 break
-            repeats[nxt] = repeats.get(nxt, 0) + 1
-            if repeats[nxt] > 2:
+            key = nxt[:2]
+            repeats[key] = repeats.get(key, 0) + 1
+            if repeats[key] > 2:
                 _dbg('settle: viewport keeps returning to %dx%d - stopping'
-                     % nxt)
+                     % key)
                 break
             vp = nxt
         # verify the FINAL viewport; never assume the last resize worked
         final = self._stable_viewport(SETTLE_READ_TIMEOUT)
         _dbg('settle: final viewport %s, target %s' % (final, want))
-        return want if final == want else None
+        return want if (final is not None and final[:2] == want) else None
 
     def _assert_geometry(self, want_w, want_h):
         """Re-assert (position, size) once after settling, and verify it.
@@ -658,15 +928,23 @@ class Widget:
             self.reset_position()          # nothing remembered: the default spot
         else:
             self._move_to(*self._want_pos)  # physical px, no DPI multiply
+        vp = self._stable_viewport(SETTLE_READ_TIMEOUT)
+        unit = 1.0
+        if vp is not None:
+            try:
+                cur_w = int(self.win.width)
+            except Exception:
+                cur_w = vp[0]
+            unit = self._window_unit_scale(cur_w, vp[0], vp[2])
         try:
-            self.win.resize(int(want_w), int(want_h))
+            self.win.resize(int(round(want_w * unit)), int(round(want_h * unit)))
         except Exception as exc:
             _dbg('geometry re-assert resize failed: %s: %s'
                  % (type(exc).__name__, exc))
         vp = self._stable_viewport(SETTLE_READ_TIMEOUT)
         _dbg('geometry re-assert: want %dx%d at %s -> rect %s, viewport %s'
              % (want_w, want_h, self._want_pos, self.window_geometry(), vp))
-        if vp == (int(want_w), int(want_h)):
+        if vp is not None and vp[:2] == (int(want_w), int(want_h)):
             return True
         _dbg('geometry re-assert did not hold; re-running the settle loop once')
         return self._settle_viewport(want_w, want_h) is not None
@@ -952,6 +1230,21 @@ def main(argv=None) -> int:
     DEBUG = bool(DEBUG or debug)          # --debug turns the one-line diagnostics on
 
     init_dpi()
+
+    # Before any window exists: the two Windows components the widget cannot run
+    # without.  Nothing is installed by this check - it reads two registry keys
+    # and, when one is missing, prints what to install and shows the same text
+    # in a message box (the silent .vbs launcher hides stderr completely) before
+    # exiting 3.  --preflight is the diagnostic form: print the raw values,
+    # never open a dialog, no window.
+    preflight = run_preflight(report=('--preflight' in argv),
+                              dialog=('--preflight' not in argv))
+    if preflight != 0:
+        return preflight
+    if '--preflight' in argv:
+        print('[crt] preflight: every required Windows component is present',
+              flush=True)
+        return 0
 
     if debug:
         try:
