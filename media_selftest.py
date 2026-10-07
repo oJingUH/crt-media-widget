@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """media_selftest.py - headless proof that the media layer actually works.
 
-Run it from the project root with the project interpreter::
+Run it from the project root with the project interpreter (Windows)
+or the portable bundle's own interpreter::
 
-    C:/Users/Rubixcube/repos/crt-media-widget/.venv/Scripts/python.exe media_selftest.py
+    .venv/Scripts/python.exe media_selftest.py
 
 It prints one JSON report on stdout and exits 0 when every hard check passed.
 Nothing is asserted from belief: timings are measured, the contract shape is

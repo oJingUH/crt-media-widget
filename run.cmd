@@ -39,8 +39,9 @@ echo   When it reports SUCCESS, start the widget again - run.cmd for the
 echo   normal silent launch, or run.cmd --debug to keep a log on screen.
 echo.
 echo   (Alternatively, use the portable build, which needs no Python at all:
-echo    extract dist\CRT-MEDIA-1.0.0-portable.zip and double-click
-echo    CRT-MEDIA.vbs inside it.)
+echo    download CRT-MEDIA-1.0.0-portable.zip from
+echo    https://github.com/oJingUH/crt-media-widget/releases/latest
+echo    extract it anywhere and double-click CRT-MEDIA.vbs inside it.)
 echo.
 timeout /t 30 >nul 2>nul
 endlocal

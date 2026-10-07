@@ -6,14 +6,13 @@ is wrong or impossible, report it instead of quietly diverging.
 
 ## Project root
 
-```
-C:/Users/Rubixcube/repos/crt-media-widget
-```
+The project folder is this repository. Run every command from it, and read every
+path below as relative to it.
 
 Interpreter (use this exact path for every run and test):
 
 ```
-C:/Users/Rubixcube/repos/crt-media-widget/.venv/Scripts/python.exe
+.venv/Scripts/python.exe
 ```
 
 Installed already: `winrt-runtime`, `winrt-Windows.Foundation`,

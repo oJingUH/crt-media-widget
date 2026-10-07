@@ -25,11 +25,14 @@ End If
 
 If Not fso.FileExists(pyw) Then
   MsgBox "CRT-MEDIA is not set up yet on this machine." & vbCrLf & vbCrLf & _
-         "Missing virtual environment:" & vbCrLf & _
+         "The project's virtual environment is missing:" & vbCrLf & _
          "    " & pyw & vbCrLf & vbCrLf & _
-         "Double-click setup.cmd in the project folder once to create it and " & _
-         "install the dependencies. When setup.cmd reports SUCCESS, run this " & _
-         "launcher again." & vbCrLf & vbCrLf & _
+         "Option 1 - no Python needed: download the portable build from" & vbCrLf & _
+         "    https://github.com/oJingUH/crt-media-widget/releases/latest" & vbCrLf & _
+         "    extract it anywhere and double-click CRT-MEDIA.vbs inside it." & vbCrLf & vbCrLf & _
+         "Option 2 - from this folder: double-click setup.cmd once to create " & _
+         "the environment and install the dependencies, then run this launcher " & _
+         "again. If setup.cmd says Python is missing, use Option 1." & vbCrLf & vbCrLf & _
          "Project folder:" & vbCrLf & "    " & here, 16, "CRT-MEDIA"
   WScript.Quit 3
 End If
