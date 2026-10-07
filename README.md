@@ -37,13 +37,69 @@ the media session your apps already publish; it does not play audio.
 
 ---
 
-## How to run
+## Platform requirements
 
-From the project folder (`C:\Users\Rubixcube\repos\crt-media-widget`):
+| | |
+|---|---|
+| **OS** | Windows 10 or Windows 11, **64-bit** only. |
+| **Python** | **Not needed for the portable build.** The from-source route needs CPython 3.10 or newer (it is developed and tested on 3.14). Every dependency is a prebuilt wheel, so no C compiler is required. |
+| **WebView2 runtime** | Required — it renders the UI. Preinstalled on Windows 11. On Windows 10 you probably have it already through Edge; if the widget's window stays blank or never appears, install the free *Evergreen Standalone Installer* from <https://developer.microsoft.com/microsoft-edge/webview2/>. |
+| **.NET Framework 4.8** | Required by pywebview's window host. Preinstalled on fully updated Windows 10 and Windows 11. |
+
+**About volume:** Windows' media session API (SMTC) exposes playback and
+metadata but nothing at all about loudness — there is no volume API on that
+path. So the volume slider, the mute button and the visualizer read and write
+the **Core Audio** endpoint directly, through
+[pycaw](https://github.com/AndreMiras/pycaw). That is why volume keeps working
+even when no media session is playing.
+
+---
+
+## Run it
+
+### The portable build — no Python required (recommended)
+
+Take `CRT-MEDIA-1.0.0-portable.zip` from the releases page, **extract it
+anywhere** (Desktop, `C:\Tools`, a USB stick), and double-click:
+
+| Double-click | What it does |
+|---|---|
+| **`CRT-MEDIA.vbs`** | Normal, silent start — no console window. |
+| **`CRT-MEDIA.bat`** | Same widget, but keeps a console open carrying the log. Use this one when something misbehaves. |
+
+The extracted folder carries its private copy of CPython and every dependency,
+so nothing is installed and no Python on the machine is touched. Read
+`FIRST-RUN.txt` inside it for the two-click start, the platform notes and where
+it keeps its state.
+
+To build that bundle yourself from a checkout:
+
+```
+.venv\Scripts\python.exe tools\build_portable.py
+```
+
+It produces `dist\CRT-MEDIA-1.0.0-portable\` and the matching `.zip`, and prints
+the archive's size and sha256. It downloads the CPython embeddable runtime from
+python.org, installs the wheels into it, and refuses to produce a bundle unless
+its own interpreter can import every dependency and read a live media session.
+
+### From source
+
+Needs 64-bit Windows and CPython 3.10+ (3.14 tested).
+
+1. Install Python from <https://www.python.org/downloads/windows/> if you do
+   not have it, and tick **Add python.exe to PATH** during the install.
+2. **Double-click `setup.cmd`** in the project folder. It needs no admin
+   rights. It finds Python, creates `.venv`, installs `requirements.txt` into
+   it and verifies that the environment can import `webview`,
+   `winrt.windows.media.control`, `pycaw`, `pystray` and `PIL`. It ends with a
+   `SUCCESS` line and the next step — or with exactly what failed, and stops
+   without leaving a half-installed environment.
+3. Start the widget.
 
 | Command | What it does |
 |---|---|
-| `run.cmd` | Normal launch. Uses the bundled venv's `pythonw.exe`, so **no console window** appears. |
+| `run.cmd` | Normal launch. Uses the venv's `pythonw.exe`, so **no console window** appears. |
 | `run.cmd --debug` | Troubleshooting launch. Uses `python.exe` and **keeps a console open** with the widget's log. |
 | `run.vbs` | Silent launch with a hidden window — the form to use from the startup folder. |
 
@@ -53,6 +109,10 @@ You can also run it directly:
 .venv\Scripts\pythonw.exe app.py
 ```
 
+If either launcher is run before `setup.cmd` has been, it says so and points at
+`setup.cmd` (`run.vbs` raises a dialog box) instead of failing with an obscure
+error.
+
 Only one widget can run at a time. If you launch a second copy it says so and
 exits instead of stacking another window — use the tray icon of the first one.
 
@@ -61,14 +121,16 @@ exits instead of stacking another window — use the tray icon of the first one.
 ## Start it with Windows
 
 1. Press `Win+R`, type `shell:startup`, press Enter. The Startup folder opens.
-2. Right-click **`run.vbs`** in the project folder → **Send to** → **Desktop
-   (create shortcut)** (or right-click → **Create shortcut**, then move the
-   shortcut into the Startup folder).
+2. Right-click the silent launcher — **`run.vbs`** in the project folder, or
+   **`CRT-MEDIA.vbs`** inside the extracted portable folder — → **Send to** →
+   **Desktop (create shortcut)** (or right-click → **Create shortcut**, then
+   move the shortcut into the Startup folder).
 3. Leave the shortcut in the Startup folder. Next sign-in the widget appears
    silently in the bottom-right corner.
 
-`run.vbs` is used rather than `run.cmd` because it starts `pythonw.exe` with a
-hidden window and returns immediately, so nothing flashes on screen at logon.
+The `.vbs` launcher is used rather than `.cmd` because it starts `pythonw.exe`
+with a hidden window and returns immediately, so nothing flashes on screen at
+logon.
 
 To stop it starting with Windows, delete that shortcut again.
 
@@ -151,6 +213,20 @@ A track with no artwork or no real timeline is normal, not an error.
 
 ## Troubleshooting
 
+**The widget never appears, or its window is blank.**
+The WebView2 runtime is missing. Install the free *Evergreen Standalone
+Installer* from
+<https://developer.microsoft.com/microsoft-edge/webview2/>, then start the
+widget again. If you are using the portable build, run `CRT-MEDIA.bat` instead
+of `CRT-MEDIA.vbs` first — it keeps a console with the error text on screen.
+
+**`CRT-MEDIA.vbs` / `run.vbs` does nothing at all.**
+It raises a dialog box rather than failing silently, so look for a message
+window: on the from-source route it means `.venv` does not exist yet and you
+need to double-click `setup.cmd` first; on the portable route it means the
+folder was not extracted completely — extract the whole zip again, keeping the
+folder structure.
+
 **The status line says `LINK:DEMO`.**
 That means the bridge did not attach: the page is running on its built-in demo
 data instead of talking to `app.py`. The window is fine to look at but is not
@@ -183,9 +259,16 @@ Click-through is on. Right-click the tray icon and untick **Click-through**.
 Tray icon → **Reset position**.
 
 **`--debug` shows a traceback about `winrt` or `pycaw`.**
-The media layer needs the `winrt-*` and `pycaw` packages installed in the
-project venv. Install the project's `requirements` into
-`.venv\Scripts\python.exe`; do not add packages to the system Python.
+The media layer's Windows packages are missing from the environment that is
+running the widget. On the from-source route, re-run `setup.cmd` — it installs
+the project's `requirements.txt` into `.venv\Scripts\python.exe` and then
+verifies every import; do not add packages to the system Python. On the
+portable route, the folder is incomplete — extract the zip again. To check an
+environment by hand:
+
+```
+.venv\Scripts\python.exe -c "import webview, winrt.windows.media.control, pycaw, pystray, PIL; print('ok')"
+```
 
 ---
 
@@ -194,12 +277,23 @@ project venv. Install the project's `requirements` into
 | Path | Role |
 |---|---|
 | `app.py` | The window shell: pywebview window, `js_api` bridge, Win32 drag / click-through / always-on-top, tray icon, position memory, single-instance guard. |
-| `media.py`, `media_selftest.py` | The media layer (WinRT SMTC + pycaw system volume) on a dedicated worker thread. |
+| `media.py`, `media_selftest.py` | The media layer (WinRT SMTC + pycaw system volume) on a dedicated worker thread, plus the headless proof it works. |
 | `web/index.html`, `web/style.css`, `web/app.js` | The CRT UI; polls `get_state()` every 600 ms and renders demo mode when no bridge is present. |
 | `web/fonts/` | The CRT font. |
+| `requirements.txt` | Exact pins for every runtime dependency, all available as Windows x64 wheels. |
+| `setup.cmd` | One-time, no-admin, double-clickable from-source install: finds Python, builds `.venv`, installs the requirements and verifies the imports. |
+| `run.cmd`, `run.vbs` | Launchers (visible-debug / silent); both point at `setup.cmd` when `.venv` is missing. |
+| `tools/build_portable.py` | Builds the self-contained portable bundle (embeddable CPython + wheels + launchers) into `dist/`. |
+| `tools/PORTABLE-FIRST-RUN.txt` | The first-run note shipped inside the portable bundle. |
 | `tools/shot.py` | Screenshot harness that renders the page at 360x400 for visual review. |
-| `run.cmd`, `run.vbs` | Launchers (visible-debug / silent). |
 | `dev/e2e_probe.py` | End-to-end probe: viewport, live bridge, transport round-trip, click-through recovery, clean exit. |
+
+Build output (never committed — `dist/` is in `.gitignore`):
+
+```
+dist\CRT-MEDIA-1.0.0-portable\       # the runnable bundle
+dist\CRT-MEDIA-1.0.0-portable.zip    # the distributable
+```
 
 Configuration written at runtime:
 

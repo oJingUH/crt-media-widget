@@ -1,0 +1,41 @@
+# CRT-MEDIA // runtime dependencies
+#
+# Exact pins, frozen from the venv the widget is developed against
+# (Windows x64, Python 3.14). Every entry below has a binary wheel for
+# CPython 3.14 on win_amd64, so `pip install -r requirements.txt` needs no
+# C compiler and no source builds.
+#
+#   python -m pip install -r requirements.txt
+#
+# Grouped by what pulls what, not alphabetically.
+
+# --- window / UI shell ---------------------------------------------------
+pywebview==6.2.1            # frameless window + js_api bridge (WebView2 on Windows)
+bottle==0.13.4              # pywebview's built-in HTTP server
+proxy-tools==0.1.0          # pywebview's local proxy helper
+typing-extensions==4.16.0   # pywebview
+
+# --- Windows media session (SMTC) ---------------------------------------
+winrt-runtime==3.2.1
+winrt-windows-foundation==3.2.1
+winrt-windows-foundation-collections==3.2.1
+winrt-windows-media-control==3.2.1
+winrt-windows-storage-streams==3.2.1
+
+# --- WinRT projection + COM ---------------------------------------------
+pythonnet==3.2.0
+clr-loader==0.3.1
+cffi==2.1.1
+pycparser==3.0
+six==1.17.0
+
+# --- system volume (Core Audio) -----------------------------------------
+pycaw==20260927             # IAudioEndpointVolume via comtypes
+comtypes==1.4.17
+
+# --- tray icon + artwork -------------------------------------------------
+pystray==0.19.5
+pillow==12.3.0
+
+# --- single-instance / process helpers ----------------------------------
+psutil==7.2.2

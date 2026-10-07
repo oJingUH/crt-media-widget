@@ -10,3 +10,8 @@ venv/
 # os cruft
 Thumbs.db
 Desktop.ini
+
+# build output: the portable bundle produced by tools/build_portable.py
+# (dist/CRT-MEDIA-1.0.0-portable/ and the matching .zip) is a release
+# artefact - it is never committed.
+dist/

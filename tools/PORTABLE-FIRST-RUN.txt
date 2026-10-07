@@ -1,0 +1,67 @@
+CRT-MEDIA // PORTABLE - first run
+=================================
+
+What this is
+------------
+A self-contained copy of the CRT-MEDIA desktop widget: a green-phosphor CRT
+panel that shows and controls whatever media session Windows is publishing
+(Spotify, a browser tab, Media Player - anything that speaks SMTC), plus the
+system volume through Core Audio.
+
+It carries its own private copy of CPython in the "python" folder next to this
+file. You do NOT need Python installed, and nothing is written into your
+Program Files or into the registry. This whole folder is disposable: delete it
+and nothing is left behind.
+
+Start it (two clicks)
+---------------------
+    Double-click  CRT-MEDIA.vbs
+
+That is the normal start: no console window, the widget appears in the
+bottom-right of the primary screen. The tray icon (a small pixel CRT in the
+notification area, behind the hidden-icons chevron the first time) can toggle
+always-on-top, click-through and reset the position, and it holds the Quit
+item.
+
+    Double-click  CRT-MEDIA.bat
+
+is the troubleshooting start: it keeps a console window open showing the
+widget's log. If something misbehaves, run this one and read the console.
+
+To start it automatically with Windows, put a shortcut to CRT-MEDIA.vbs in
+your Startup folder (Win+R -> shell:startup).
+
+Requirements
+------------
+* Windows 10 or 11, 64-bit.
+* The Microsoft Edge WebView2 runtime. It is preinstalled on Windows 11; on
+  Windows 10 you may already have it from Edge. If the window is blank or the
+  widget does not appear at all, install the free "Evergreen Standalone
+  Installer" from
+      https://developer.microsoft.com/microsoft-edge/webview2/
+* .NET Framework 4.8. Preinstalled on fully updated Windows 10 and Windows 11.
+
+Nothing else. No Python, no admin rights, no installer.
+
+Where it keeps things
+---------------------
+    %LOCALAPPDATA%\crt-media-widget\position.json
+
+is the only file it writes: the last window position and size. Delete that
+file (or use the tray item "Reset position") to snap the widget back to the
+bottom-right corner.
+
+Only one copy can run at a time. If you double-click the launcher again while
+the widget is already up, the second copy notices and exits quietly - use the
+tray icon of the first one.
+
+Check it by hand (optional)
+---------------------------
+To prove the bundled runtime can reach Windows' media API, open a Command
+Prompt in this folder and run:
+
+    python\python.exe media_selftest.py
+
+It prints a JSON report and exits 0 when every check passes. Note that it
+briefly pauses / skips / seeks whatever is currently playing and changes the
+system volume, then puts everything back; it reports exactly what it observed.
