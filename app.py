@@ -60,6 +60,22 @@ VIEW_W, VIEW_H = 360, 400                   # design CSS viewport (startup size)
 VIEW_MIN_W, VIEW_MIN_H = 260, 290           # user-resize clamp, CSS pixels
 VIEW_MAX_W, VIEW_MAX_H = 900, 1000          # user-resize clamp, CSS pixels
 MARGIN = 24                                 # gap to the work-area edge
+
+# --- startup settle loop ---------------------------------------------------
+# The CSS viewport is driven to the target size by reading
+# window.innerWidth/innerHeight and resizing by the difference.  A single read
+# can arrive before a resize has been applied (or before the page has laid
+# out), so the loop only ever acts on a value that has been read the SAME way
+# twice in a row, and it verifies the final viewport instead of trusting the
+# last resize.
+SETTLE_POLL = 0.02                          # s between viewport reads
+SETTLE_READ_TIMEOUT = 0.6                   # s to wait for a resize to land and read stable
+SETTLE_MAX_STEPS = 24                       # hard bound on resize steps
+# A remembered size this close (CSS px) to the design size in BOTH axes is
+# treated as settle noise rather than a deliberate resize.  The two transients
+# ever seen on this machine were 379x404 (+19/+4) and 376x393 (+16/-7); a real
+# user resize is a deliberate, much larger change.
+SIZE_INTENT_TOL = 64
 BACKGROUND_COLOR = '#06120A'                # --bg; opaque, so no light halo
 SINGLETON_NAME = 'Local\\crt-media-widget-singleton'
 
@@ -190,6 +206,9 @@ class Widget:
         self.always_on_top = True
         self.click_through = False
         self._want_view = (VIEW_W, VIEW_H)   # CSS viewport to settle at startup
+        self._want_pos = None                # restored (x, y); None = use the default
+        self._user_size = False              # size was committed by a real resize
+        self._geometry_ready = threading.Event()   # startup geometry proven good
         self._rs = None                      # in-flight user resize state
 
     # -- native handle ------------------------------------------------------
@@ -268,9 +287,14 @@ class Widget:
                     return False
                 user32.SetWindowPos(hwnd, None, 0, 0, w, h,
                                     SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE)
-                return True
             except Exception:
                 return False
+        # an explicit resize request (the bridge, or the grip's end_resize) is a
+        # deliberate size, so remember it as such rather than treating it as a
+        # settle transient.
+        self._user_size = True
+        self.save_window_geometry(force=True)
+        return True
 
     def begin_resize(self) -> bool:
         """Remember the window rect and the cursor's screen position."""
@@ -314,7 +338,10 @@ class Widget:
     def end_resize(self) -> bool:
         with self._lock:
             self._rs = None
-        self.save_window_geometry()
+        # the user chose this size by hand: that is intent, not a transient, so
+        # remember it even if the settle loop has not run yet.
+        self._user_size = True
+        self.save_window_geometry(force=True)
         return True
 
     # -- window flags -------------------------------------------------------
@@ -379,8 +406,22 @@ class Widget:
             return bool(self.click_through)
 
     # -- geometry (position + size) ----------------------------------------
+    def _size_is_deliberate(self, w: int, h: int, user_size: bool) -> bool:
+        """Is (w, h) a size the widget should re-settle on?
+
+        Yes when a resize gesture committed it, or when it is clearly not a
+        settle transient: a size within SIZE_INTENT_TOL of the design size in
+        both axes is noise (the transients seen on this machine were 379x404
+        and 376x393), and re-settling on it would make the corruption
+        self-perpetuating.
+        """
+        if user_size:
+            return True
+        return (abs(w - VIEW_W) > SIZE_INTENT_TOL
+                or abs(h - VIEW_H) > SIZE_INTENT_TOL)
+
     def _load_geometry(self):
-        """Remembered {x,y,w,h} under %LOCALAPPDATA%, or None when unusable."""
+        """Remembered {x,y,w,h,user_size} under %LOCALAPPDATA%, or None."""
         try:
             with open(POSITION_FILE, 'r', encoding='utf-8') as fh:
                 data = json.load(fh)
@@ -388,11 +429,13 @@ class Widget:
             if not (-10000 <= x <= 20000 and -10000 <= y <= 20000):
                 return None
             # older files carried only x/y: fall back to the design size
-            w = int(data.get('w', VIEW_W))
-            h = int(data.get('h', VIEW_H))
-            w = max(VIEW_MIN_W, min(VIEW_MAX_W, w))
-            h = max(VIEW_MIN_H, min(VIEW_MAX_H, h))
-            return {'x': x, 'y': y, 'w': w, 'h': h}
+            w, h = self._clamped_size(data.get('w', VIEW_W), data.get('h', VIEW_H))
+            user_size = bool(data.get('user_size'))
+            if not self._size_is_deliberate(w, h, user_size):
+                _dbg('restored size %dx%d was never chosen by a resize; '
+                     'using the %dx%d design size' % (w, h, VIEW_W, VIEW_H))
+                w, h = VIEW_W, VIEW_H
+            return {'x': x, 'y': y, 'w': w, 'h': h, 'user_size': user_size}
         except Exception:
             return None
 
@@ -406,7 +449,8 @@ class Widget:
             tmp = '%s.%d.tmp' % (POSITION_FILE, next(self._pos_tmp_seq))
             with open(tmp, 'w', encoding='utf-8') as fh:
                 json.dump({'x': int(x), 'y': int(y),
-                           'w': int(w), 'h': int(h)}, fh)
+                           'w': int(w), 'h': int(h),
+                           'user_size': bool(self._user_size)}, fh)
             os.replace(tmp, POSITION_FILE)
         except Exception as exc:
             _dbg('geometry save failed: %s: %s' % (type(exc).__name__, exc))
@@ -424,7 +468,15 @@ class Widget:
         except Exception:
             return None
 
-    def save_window_geometry(self) -> None:
+    def save_window_geometry(self, force: bool = False) -> None:
+        # Never let a half-settled startup geometry become the remembered one:
+        # until the settle loop has verified the window, a read is still in
+        # flight, and persisting it is how one wrong size becomes every later
+        # launch's target.  `force` is for a geometry the user just committed
+        # (the resize grip, a bridge resize, Reset position).
+        if not force and not self._geometry_ready.is_set():
+            _dbg('geometry not saved: startup geometry is not verified yet')
+            return
         g = self.window_geometry()
         if g:
             self.save_geometry(*g)
@@ -459,13 +511,25 @@ class Widget:
     def reset_position(self) -> None:
         x, y = self.default_position()
         self._move_to(x, y)
-        self.save_window_geometry()
+        self.save_window_geometry(force=True)
 
     def _position_watcher(self) -> None:
         hwnd = self.hwnd()
-        last = None
+        last = None      # geometry seen on the previous tick
+        saved = None     # geometry already written to position.json
         while not self._quit.wait(1.0):
             try:
+                # Nothing may be remembered before startup has been proven
+                # settled: a read taken while the window is still being placed
+                # is in flight, not a position the user chose.
+                if not self._geometry_ready.is_set():
+                    last = None
+                    continue
+                # A resize gesture is in flight; end_resize() commits the final
+                # size itself, so the intermediate ones are skipped entirely.
+                if self._rs is not None:
+                    last = None
+                    continue
                 if not hwnd or not user32.IsWindow(hwnd):
                     hwnd = self.hwnd()
                 if not hwnd:
@@ -477,10 +541,135 @@ class Widget:
                     continue
                 geo = (r.left, r.top, r.right - r.left, r.bottom - r.top)
                 if geo != last:
+                    # changed since the last tick -> still moving; wait for a
+                    # tick where the geometry does not change any more.
                     last = geo
-                    self.save_geometry(*geo)
+                    continue
+                if geo == saved:
+                    continue
+                if self.window_geometry() != geo:
+                    # it moved again between the two reads: still in flight
+                    last = None
+                    continue
+                saved = geo
+                self.save_geometry(*geo)
             except Exception as exc:
                 _dbg('geometry watcher: %s: %s' % (type(exc).__name__, exc))
+
+    # -- viewport settle ----------------------------------------------------
+    # create_window(wxh) does not always yield a wxh CSS viewport (the form can
+    # lose pixels and Windows can clamp the size), so at startup the viewport is
+    # driven to the target.  Every read is confirmed by a second read, every
+    # resize waits for the reported size to actually move, and the final
+    # viewport is read back instead of assumed: a stale read must never be taken
+    # for an achieved resize, and a non-target size must never be accepted as
+    # settled.
+    def _read_viewport(self):
+        """(innerWidth, innerHeight) in CSS px, or None."""
+        try:
+            vp = json.loads(self.win.evaluate_js(
+                'JSON.stringify([window.innerWidth, window.innerHeight])'))
+            out = (int(vp[0]), int(vp[1]))
+        except Exception as exc:
+            _dbg('viewport read failed: %s: %s' % (type(exc).__name__, exc))
+            return None
+        _dbg('settle read: viewport %dx%d' % out)
+        return out
+
+    def _stable_viewport(self, timeout, changed_from=None):
+        """Read the viewport until the same value comes back twice in a row.
+
+        With ``changed_from`` the value must also differ from it, which is what
+        makes "the resize I just asked for has landed" waitable.  Returns the
+        last value read (or None when no read ever worked).
+        """
+        deadline = time.monotonic() + timeout
+        last = None
+        while True:
+            cur = self._read_viewport()
+            if cur is not None:
+                if last == cur and (changed_from is None or cur != changed_from):
+                    return cur
+                last = cur
+            if time.monotonic() >= deadline:
+                return last
+            time.sleep(SETTLE_POLL)
+
+    def _settle_viewport(self, want_w, want_h):
+        """Drive the CSS viewport to exactly want_w x want_h, or give up.
+
+        Returns the target size only when the viewport really reads it; None
+        when it could not be reached, so a non-target size is never reported as
+        settled.  The step count is bounded, a no-op resize stops the loop and a
+        viewport that keeps coming back stops it too, so it can neither spin nor
+        oscillate forever.
+        """
+        want = (int(want_w), int(want_h))
+        vp = self._stable_viewport(SETTLE_READ_TIMEOUT)
+        _dbg('settle: target %dx%d, first stable read %s'
+             % (want[0], want[1], vp))
+        if vp is None:
+            return None
+        repeats = {}
+        for step in range(SETTLE_MAX_STEPS):
+            if vp == want:
+                _dbg('settle: viewport is the target %dx%d (step %d)'
+                     % (want[0], want[1], step))
+                return want
+            try:
+                cur_w, cur_h = int(self.win.width), int(self.win.height)
+            except Exception as exc:
+                _dbg('settle: window size read failed: %s: %s'
+                     % (type(exc).__name__, exc))
+                return None
+            nw, nh = self._clamped_size(cur_w + (want[0] - vp[0]),
+                                        cur_h + (want[1] - vp[1]))
+            if (nw, nh) == (cur_w, cur_h):
+                _dbg('settle[%d]: resize would be a no-op (%dx%d), viewport %dx%d '
+                     'window %dx%d - stopping instead of spinning'
+                     % (step, nw, nh, vp[0], vp[1], cur_w, cur_h))
+                break
+            _dbg('settle[%d]: read %dx%d want %dx%d window %dx%d -> resize(%d,%d)'
+                 % (step, vp[0], vp[1], want[0], want[1], cur_w, cur_h, nw, nh))
+            self.win.resize(nw, nh)
+            nxt = self._stable_viewport(SETTLE_READ_TIMEOUT, changed_from=vp)
+            if nxt is None:
+                break
+            repeats[nxt] = repeats.get(nxt, 0) + 1
+            if repeats[nxt] > 2:
+                _dbg('settle: viewport keeps returning to %dx%d - stopping'
+                     % nxt)
+                break
+            vp = nxt
+        # verify the FINAL viewport; never assume the last resize worked
+        final = self._stable_viewport(SETTLE_READ_TIMEOUT)
+        _dbg('settle: final viewport %s, target %s' % (final, want))
+        return want if final == want else None
+
+    def _assert_geometry(self, want_w, want_h):
+        """Re-assert (position, size) once after settling, and verify it.
+
+        A transient during startup must never be what gets remembered, so the
+        window is put back where the remembered geometry says, the target size
+        is re-applied, and the viewport is read back.  Returns True only when
+        the viewport really is the target.
+        """
+        if self._want_pos is None:
+            self.reset_position()          # nothing remembered: the default spot
+        else:
+            self._move_to(*self._want_pos)  # physical px, no DPI multiply
+        try:
+            self.win.resize(int(want_w), int(want_h))
+        except Exception as exc:
+            _dbg('geometry re-assert resize failed: %s: %s'
+                 % (type(exc).__name__, exc))
+        vp = self._stable_viewport(SETTLE_READ_TIMEOUT)
+        _dbg('geometry re-assert: want %dx%d at %s -> rect %s, viewport %s'
+             % (want_w, want_h, self._want_pos, self.window_geometry(), vp))
+        if vp == (int(want_w), int(want_h)):
+            return True
+        _dbg('geometry re-assert did not hold; re-running the settle loop once')
+        return self._settle_viewport(want_w, want_h) is not None
 
     # -- lifecycle ----------------------------------------------------------
     def setup_window(self) -> None:
@@ -495,9 +684,18 @@ class Widget:
             x = max(l, rr - (VIEW_W + 16) - MARGIN)
             y = max(t, bb - (VIEW_H + 40) - MARGIN)
             want_w, want_h = VIEW_W, VIEW_H
+            self._want_pos = None          # no remembered spot: use the default
+            self._user_size = False
         else:
             x, y = saved['x'], saved['y']
             want_w, want_h = saved['w'], saved['h']
+            self._want_pos = (x, y)        # re-asserted once after settling
+            # _load_geometry already snapped a non-deliberate size back to the
+            # design size; anything that survived is a size to remember.
+            self._user_size = (bool(saved['user_size'])
+                               or (want_w, want_h) != (VIEW_W, VIEW_H))
+            _dbg('restored geometry %s -> target %dx%d at %d,%d'
+                 % (saved, want_w, want_h, x, y))
         self._want_view = (want_w, want_h)
 
         self.win = webview.create_window(
@@ -532,24 +730,16 @@ class Widget:
                 self.force_quit()
                 return
 
-            # fact 1: create_window(wxh) yields a smaller CSS viewport because
-            # the form loses frame pixels; grow until it is exact.  The target
-            # is the remembered size (or the 360x400 design size on first run).
+            # fact 1: create_window(wxh) does not always yield a wxh CSS
+            # viewport (the form can lose pixels and Windows can clamp the
+            # size), so drive it to the target: the remembered size, or the
+            # 360x400 design size.  The loop only proves a viewport it has read
+            # the same way twice and has verified at the end.
             want_w, want_h = self._want_view
-            settled = None
-            vp = [want_w, want_h]
-            for _ in range(40):
-                vp = json.loads(self.win.evaluate_js(
-                    'JSON.stringify([window.innerWidth, window.innerHeight])'))
-                dx, dy = want_w - int(vp[0]), want_h - int(vp[1])
-                if dx == 0 and dy == 0:
-                    settled = (int(vp[0]), int(vp[1]))
-                    break
-                self.win.resize(self.win.width + dx, self.win.height + dy)
-                time.sleep(0.05)
+            settled = self._settle_viewport(want_w, want_h)
             if settled is None:
-                print('[crt] viewport never settled at %dx%d (last %s)'
-                      % (want_w, want_h, vp), file=sys.stderr)
+                print('[crt] viewport never settled at %dx%d' % (want_w, want_h),
+                      file=sys.stderr)
             else:
                 print('[crt] viewport settled at %dx%d' % settled, flush=True)
 
@@ -561,10 +751,20 @@ class Widget:
             except Exception:
                 pass
 
-            # exact physical placement (avoids the pywebview DPI multiply)
-            if self._load_geometry() is None:
-                self.reset_position()
+            # Re-assert the whole geometry once - exact physical placement
+            # (which avoids the pywebview DPI multiply) plus the target size -
+            # and verify it, so a transient during startup can never be what
+            # gets remembered.  Only a verified geometry may be persisted.
+            placed = self._assert_geometry(want_w, want_h)
             self.always_on_top = True
+
+            if placed:
+                self._geometry_ready.set()
+                self.save_window_geometry()
+            else:
+                print('[crt] geometry not verified at %dx%d; leaving '
+                      'position.json untouched' % (want_w, want_h),
+                      file=sys.stderr)
 
             # keep the saved position fresh while the user drags
             threading.Thread(target=self._position_watcher, daemon=True).start()
