@@ -42,7 +42,7 @@ the media session your apps already publish; it does not play audio.
 | | |
 |---|---|
 | **OS** | Windows 10 or Windows 11, **64-bit** only. |
-| **Python** | **Not needed for the portable build.** The from-source route needs CPython 3.10 or newer (it is developed and tested on 3.14). Every dependency is a prebuilt wheel, so no C compiler is required. |
+| **Python** | **Not needed for the portable build.** The from-source route needs CPython 3.11 or newer (developed and tested on 3.14; 3.10 cannot work because pythonnet publishes no wheel for it). Every dependency is a prebuilt wheel, so no C compiler is required. |
 | **WebView2 runtime** | Required — it renders the UI. Preinstalled on Windows 11. On Windows 10 you probably have it already through Edge; if the widget's window stays blank or never appears, install the free *Evergreen Standalone Installer* from <https://developer.microsoft.com/microsoft-edge/webview2/>. |
 | **.NET Framework 4.8** | Required by pywebview's window host. Preinstalled on fully updated Windows 10 and Windows 11. |
 
@@ -85,7 +85,7 @@ its own interpreter can import every dependency and read a live media session.
 
 ### From source
 
-Needs 64-bit Windows and CPython 3.10+ (3.14 tested).
+Needs 64-bit Windows and CPython 3.11+ (3.14 tested; 3.10 cannot work because pythonnet publishes no wheel for it).
 
 1. Install Python from <https://www.python.org/downloads/windows/> if you do
    not have it, and tick **Add python.exe to PATH** during the install.

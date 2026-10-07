@@ -7,8 +7,9 @@ rem  registry changes, and it does everything inside the project folder.
 rem
 rem  What it does:
 rem    1. finds a usable Python (prefers the "py" launcher, falls back to
-rem       "python" on PATH; needs CPython 3.10 or newer, 3.14 is what the app
-rem       is developed and tested against)
+rem       "python" on PATH; needs CPython 3.11 or newer, because pythonnet
+rem       3.2.0 publishes wheels only from 3.11 up. 3.14 is what the app is
+rem       developed and tested against)
 rem    2. creates .venv next to this script - with uv when uv is available,
 rem       otherwise with "python -m venv"
 rem    3. installs requirements.txt into it
@@ -84,14 +85,15 @@ if defined PYLAUNCH goto :havepython
 
 echo [FAIL] No Python found on this machine.
 echo.
-echo        Install Python 3.10 or newer (3.14 recommended) from
+echo        Install Python 3.11 or newer (3.14 recommended) from
 echo            https://www.python.org/downloads/windows/
 echo        During the install, tick "Add python.exe to PATH", then run
 echo        setup.cmd again.
 echo.
 echo        If you do not want to install Python at all, use the portable
-echo        build instead: extract dist\CRT-MEDIA-1.0.0-portable.zip and
-echo        double-click CRT-MEDIA.vbs inside it.
+echo        build instead: download CRT-MEDIA-1.0.0-portable.zip from
+echo            https://github.com/oJingUH/crt-media-widget/releases/latest
+echo        extract it anywhere and double-click CRT-MEDIA.vbs inside it.
 goto :failuse
 
 :havepython
@@ -106,10 +108,11 @@ if not defined PYEXE (
 echo        found Python %PYVER%
 echo        %PYEXE%
 
-%PYLAUNCH% -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=(3,10) else 1)"
+%PYLAUNCH% -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=(3,11) else 1)"
 if errorlevel 1 (
-  echo [FAIL] Python %PYVER% is too old. CRT-MEDIA needs 3.10 or newer;
-  echo        3.14 is what it is developed and tested against.
+  echo [FAIL] Python %PYVER% is too old. CRT-MEDIA needs 3.11 or newer;
+  echo        3.14 is what it is developed and tested against. Python 3.10
+  echo        cannot work: pythonnet publishes no wheel for it.
   goto :failuse
 )
 
