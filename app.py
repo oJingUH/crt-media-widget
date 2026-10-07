@@ -58,6 +58,16 @@ def _dbg(message: str) -> None:
 # ---------------------------------------------------------------------------
 PROJECT = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(PROJECT, 'web', 'index.html')
+# The window icon (taskbar button + Alt-Tab entry).  pywebview's WinForms
+# backend borrows the icon of the host executable - pythonw.exe, i.e. the blank
+# page with the Python logo - when no window icon is set, so the shipped
+# multi-size .ico is handed to webview.start(icon=...) instead (see
+# _window_icon).  It is an absolute path on purpose: pywebview resolves a
+# relative one against the CURRENT WORKING DIRECTORY, and the icon has to
+# resolve identically whether the widget runs from this repo or from the
+# extracted portable bundle.  A missing file is not fatal - pywebview silently
+# keeps its default - so the fallback is guarded rather than assumed.
+ICON = os.path.join(PROJECT, 'assets', 'crt-media-widget.ico')
 
 WINDOW_TITLE = 'CRT-MEDIA'
 VIEW_W, VIEW_H = 360, 400                   # design CSS viewport (startup size)
@@ -1292,6 +1302,17 @@ def _make_media():
     return media.MediaController()
 
 
+def _window_icon():
+    """Absolute path to assets/crt-media-widget.ico, or None.
+
+    pywebview only honours ``icon`` when the file really exists (a false path
+    falls back to pythonw.exe's icon with nothing raised), so the existence is
+    checked here and None is returned otherwise - an unbuilt/trimmed checkout
+    keeps working exactly as before instead of depending on the asset.
+    """
+    return ICON if os.path.isfile(ICON) else None
+
+
 def _page_uri() -> str:
     from pathlib import Path
     # no flags: WebView2 percent-encodes a '?' in a file:// URL and the load
@@ -1424,7 +1445,7 @@ def main(argv=None) -> int:
     try:
         import webview
         widget.setup_window()
-        webview.start(widget.job, debug=debug)
+        webview.start(widget.job, debug=debug, icon=_window_icon())
     except Exception:
         traceback.print_exc()
         widget.cleanup()

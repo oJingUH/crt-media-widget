@@ -26,7 +26,8 @@ What it does, in order
     4. installs requirements.txt into <bundle>/python/Lib/site-packages with
        uv, wheels only (``--only-binary :all:``), so a dependency that would
        need a C compiler fails the build instead of half-working
-    5. copies the app files and web/ (no dev/, no CONTRACT.md, no .venv)
+    5. copies the app files, the window icon (assets/) and web/ (no dev/, no
+       CONTRACT.md, no .venv)
     6. writes the CRT-MEDIA.vbs / CRT-MEDIA.bat launchers and FIRST-RUN.txt
     7. VERIFIES the finished bundle by running its own python: every runtime
        import, then a real MediaController.get_state() against the live
@@ -93,7 +94,8 @@ EMBED_URL = "https://www.python.org/ftp/python/{v}/python-{v}-embed-amd64.zip"
 VERSION_CANDIDATES = ["3.14.7", "3.14.6", "3.14.5", "3.14.4", "3.14.3", "3.14.2",
                       "3.14.1", "3.14.0"]
 
-APP_FILES = ["app.py", "media.py", "media_selftest.py"]
+APP_FILES = ["app.py", "media.py", "media_selftest.py",
+             "assets/crt-media-widget.ico"]   # the window/taskbar icon app.py loads
 APP_DIRS = ["web"]                       # includes web/fonts/
 DOC_FILES = ["README.md", "requirements.txt", "VERSION"]
 FIRST_RUN_SRC = ROOT / "tools" / "PORTABLE-FIRST-RUN.txt"
@@ -404,7 +406,9 @@ def assemble(bundle: Path) -> None:
         src = ROOT / name
         if not src.is_file():
             die("required app file is missing: %s" % src)
-        shutil.copy2(src, bundle / name)
+        dst = bundle / name
+        dst.parent.mkdir(parents=True, exist_ok=True)   # assets/ is nested
+        shutil.copy2(src, dst)
     for name in APP_DIRS:
         src = ROOT / name
         if not src.is_dir():
