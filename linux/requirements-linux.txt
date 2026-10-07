@@ -1,0 +1,27 @@
+# CRT-MEDIA // Linux runtime dependencies (the pip side only)
+#
+# Install with the venv's own pip, from the repo root:
+#
+#     .venv/bin/python -m pip install -r linux/requirements-linux.txt
+#
+# Only two things live here, because everything else the widget imports comes
+# from apt and MUST NOT be pip-installed on this machine:
+#
+#   gi, cairo          <- python3-gi, python3-gi-cairo, python3-cairo
+#   Gtk 3.0 typelib    <- gir1.2-gtk-3.0
+#   WebKit2 4.1 typelib<- gir1.2-webkit2-4.1
+#   PIL                <- python3-pil
+#   dbus               <- python3-dbus
+#   tray indicator     <- gir1.2-ayatanaappindicator3-0.1
+#   X11 pointer/fallback <- python3-xlib
+#
+# The venv is created with --system-site-packages precisely so those apt
+# packages are importable from it.  A plain venv cannot see them, and
+# pip-installing PyGObject (or Pillow's build dependencies) needs a C compiler
+# and dev headers that are not on the Linux Mint ISO.
+#
+# Both pins below are wheels for CPython 3.12 on any platform, so this install
+# needs no compiler either.
+
+pywebview==6.2.1        # frameless window + js_api bridge (GTK3 + WebKitGTK-4.1)
+dbus-fast==5.0.22       # async D-Bus client used by media_linux.py

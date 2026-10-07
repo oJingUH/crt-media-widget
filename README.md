@@ -55,6 +55,44 @@ even when no media session is playing.
 
 ---
 
+## Linux (Linux Mint)
+
+There is a Linux twin of this widget in `linux/`, using GTK3 + WebKitGTK
+instead of WebView2, MPRIS over D-Bus instead of the Windows media session
+API, and PipeWire (`wpctl`) instead of Core Audio. The `web/` folder, and
+therefore the whole UI, is identical on both platforms.
+
+The install route is two commands, run from the project folder:
+
+```
+./linux/selfcheck.sh      # read-only report of your machine; paste the output
+./linux/setup.sh          # build .venv, install the menu entry and autostart
+```
+
+`selfcheck.sh` needs no virtual environment and changes nothing on the
+machine: it reports the distribution, your session type, the apt bindings, the
+MPRIS players currently on the bus and your volume backend, then ends with a
+verdict. Run it first, especially if anything below is unfamiliar.
+
+After setup, launch it from the applications menu (search **CRT-MEDIA**), with
+`./linux/run.sh`, or let the autostart entry that setup installs bring it up at
+login. `./linux/run.sh --debug` keeps a log on screen and
+`./linux/run.sh --preflight` prints the component report.
+
+**Honest status:** this port has never been executed on a real Linux Mint
+machine. It was written and syntax-checked against the pywebview, pystray and
+GTK sources, and the bridge contract against `web/app.js` was verified
+mechanically, but no GTK window, no X11 SHAPE call, no tray icon and no MPRIS
+player has been exercised yet. That is why `selfcheck.sh` is the first step by
+design.
+
+Everything below this line is the **Windows** route. The Linux notes, the
+feature differences (browsers publish MPRIS on Linux, Electron apps do not;
+always-on-top and click-through need an X11 session, which is Mint's default)
+and a Linux troubleshooting table are in **[linux/LINUX.md](linux/LINUX.md)**.
+
+---
+
 ## Run it
 
 ### The portable build — no Python required (recommended)
