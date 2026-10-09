@@ -25,7 +25,7 @@ exit /b %errorlevel%
 
 :novenv
 echo.
-echo   CRT-MEDIA is not set up yet on this machine.
+echo   RETRO-CONTROLLER is not set up yet on this machine.
 echo.
 echo   The project's virtual environment is missing:
 echo       %PYW%
@@ -39,9 +39,9 @@ echo   When it reports SUCCESS, start the widget again - run.cmd for the
 echo   normal silent launch, or run.cmd --debug to keep a log on screen.
 echo.
 echo   (Alternatively, use the portable build, which needs no Python at all:
-echo    download CRT-MEDIA-1.0.0-portable.zip from
-echo    https://github.com/oJingUH/crt-media-widget/releases/latest
-echo    extract it anywhere and double-click CRT-MEDIA.vbs inside it.)
+echo    download RETRO-CONTROLLER-1.2.0-portable.zip from
+echo    https://github.com/oJingUH/retro-controller/releases/latest
+echo    extract it anywhere and double-click RETRO-CONTROLLER.vbs inside it.)
 echo.
 timeout /t 30 >nul 2>nul
 endlocal
@@ -49,10 +49,10 @@ exit /b 1
 
 :noapp
 echo.
-echo   CRT-MEDIA cannot start: app.py is missing from
+echo   RETRO-CONTROLLER cannot start: app.py is missing from
 echo       %HERE%
 echo.
-echo   This folder does not look like a complete CRT-MEDIA checkout.
+echo   This folder does not look like a complete RETRO-CONTROLLER checkout.
 echo.
 timeout /t 30 >nul 2>nul
 endlocal

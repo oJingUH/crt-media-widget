@@ -1,4 +1,4 @@
-# CRT-MEDIA on Linux (Linux Mint)
+# RETRO-CONTROLLER on Linux (Linux Mint)
 
 This is the Linux twin of the Windows widget in the root of this repository.
 Same window, same CRT panel, same web UI (`web/` is shared byte for byte).
@@ -60,7 +60,7 @@ Three ways, all equivalent:
 
 | How | Command |
 |---|---|
-| Applications menu | search for **CRT-MEDIA**, click it |
+| Applications menu | search for **RETRO-CONTROLLER**, click it |
 | From a terminal | `./linux/run.sh` |
 | With a log on screen | `./linux/run.sh --debug` |
 
@@ -71,10 +71,10 @@ Setup also adds an autostart entry, so the widget comes up by itself when you
 log in. To stop that:
 
 ```
-rm -f ~/.config/autostart/crt-media-widget.desktop
+rm -f ~/.config/autostart/retro-controller.desktop
 ```
 
-Its state lives in `~/.local/state/crt-media-widget/`:
+Its state lives in `~/.local/state/retro-controller/`:
 
 ```
 geometry.json   the window position and size it remembers
@@ -138,7 +138,7 @@ run produces a factual report instead of a mystery.
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| Nothing happens when I click the menu entry | it was launched outside the desktop session, or it crashed with no console | run `./linux/run.sh --debug` in a terminal; read `~/.local/state/crt-media-widget/widget.log` |
+| Nothing happens when I click the menu entry | it was launched outside the desktop session, or it crashed with no console | run `./linux/run.sh --debug` in a terminal; read `~/.local/state/retro-controller/widget.log` |
 | The window is blank, white or empty | WebKitGTK DMA-BUF rendering on some GPU/driver combinations | `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./linux/run.sh` |
 | No tray icon appears | the panel has no status-applet host, or the appindicator typelib is missing | right-click the panel, **Applets**, add **XApp Status Applet**; and `sudo apt install gir1.2-ayatanaappindicator3-0.1` |
 | The widget shows nothing to control | nothing is publishing MPRIS | play something in Firefox, Chromium or a player that publishes MPRIS; Electron apps will not appear |
@@ -147,7 +147,7 @@ run produces a factual report instead of a mystery.
 | Always-on-top does not stick, or the window will not move | you are on a Wayland session | log out and pick an X11 session on the login screen |
 | The volume slider does nothing | no `wpctl` and no `pactl` on the machine | `sudo apt install pipewire-bin` (PipeWire) or `pulseaudio-utils` |
 | Turning click-through on is refused with a message | no tray backend, so it could not be turned off again | install `gir1.2-ayatanaappindicator3-0.1`, restart the widget, then try again |
-| "CRT-MEDIA is already running" | a second instance was launched | use the tray icon of the first one, or quit it first |
+| "RETRO-CONTROLLER is already running" | a second instance was launched | use the tray icon of the first one, or quit it first |
 
 ---
 
@@ -160,8 +160,8 @@ run produces a factual report instead of a mystery.
 | `linux/run.sh` | The launcher behind the menu entry, the autostart entry and `--debug` / `--preflight`. |
 | `linux/selfcheck.sh` | The read-only report to run first. Needs no venv. |
 | `linux/requirements-linux.txt` | The two pip pins (`pywebview`, `dbus-fast`). Everything else comes from apt. |
-| `linux/assets/crt-media-widget.desktop.in` | The menu entry template; `setup.sh` substitutes `@EXEC@`. |
-| `linux/assets/crt-media-widget.svg` | The icon, installed into the user's hicolor theme. |
+| `linux/assets/retro-controller.desktop.in` | The menu entry template; `setup.sh` substitutes `@EXEC@`. |
+| `linux/assets/retro-controller.svg` | The icon, installed into the user's hicolor theme. |
 | `linux/media_linux.py` | The media layer (MPRIS + PipeWire volume) on its own worker thread. |
 
 The shared, unchanged material lives at the repository root: `app.py` (the

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ===========================================================================
-#  CRT-MEDIA // run (Linux)
+#  RETRO-CONTROLLER // run (Linux)
 #
 #  Start the widget from a checkout.  Used by the .desktop entry, by the
 #  autostart entry, and by hand from a terminal.
@@ -23,17 +23,17 @@ APP="$HERE/app_linux.py"
 
 if [[ ! -f "$APP" ]]; then
   echo
-  echo "  CRT-MEDIA cannot start: app_linux.py is missing from"
+  echo "  RETRO-CONTROLLER cannot start: app_linux.py is missing from"
   echo "      $HERE"
   echo
-  echo "  This does not look like a complete CRT-MEDIA checkout."
+  echo "  This does not look like a complete RETRO-CONTROLLER checkout."
   echo
   exit 2
 fi
 
 if [[ ! -x "$PY" ]]; then
   echo
-  echo "  CRT-MEDIA is not set up yet on this machine."
+  echo "  RETRO-CONTROLLER is not set up yet on this machine."
   echo
   echo "  The project's virtual environment is missing:"
   echo "      $VENV"
@@ -44,7 +44,7 @@ if [[ ! -x "$PY" ]]; then
   echo
   echo "  When it reports SUCCESS, start the widget again with"
   echo "      ./linux/run.sh            (or ./linux/run.sh --debug)"
-  echo "  or pick CRT-MEDIA from the applications menu."
+  echo "  or pick RETRO-CONTROLLER from the applications menu."
   echo
   exit 1
 fi

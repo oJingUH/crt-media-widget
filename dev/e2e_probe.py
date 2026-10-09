@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CRT-MEDIA end-to-end probe (shell agent).
+"""RETRO-CONTROLLER end-to-end probe (shell agent).
 
 Drives the LIVE widget from outside the process and proves:
 
@@ -39,7 +39,7 @@ import time
 import urllib.request
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WINDOW_TITLE = 'CRT-MEDIA'
+WINDOW_TITLE = 'RETRO-CONTROLLER'
 
 FAILURES: list[str] = []
 
@@ -257,7 +257,7 @@ def corner_probe(img, k: int = 3):
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description='CRT-MEDIA end-to-end probe')
+    ap = argparse.ArgumentParser(description='RETRO-CONTROLLER end-to-end probe')
     ap.add_argument('--port', type=int, default=9222)
     ap.add_argument('--out', default=os.path.join(PROJECT, 'dev', 'live-widget.png'))
     ap.add_argument('--wait', type=float, default=1.5, help='settle seconds before capture')
@@ -268,7 +268,7 @@ def main(argv=None) -> int:
     out_path = os.path.abspath(args.out)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-    print('=== CRT-MEDIA end-to-end probe ===')
+    print('=== RETRO-CONTROLLER end-to-end probe ===')
     print('project   %s' % PROJECT)
     print('cdp port  %d' % args.port)
 

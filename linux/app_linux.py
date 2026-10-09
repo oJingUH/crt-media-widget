@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CRT-MEDIA // Linux (GTK3 / WebKitGTK-4.1) desktop widget shell.
+"""RETRO-CONTROLLER // Linux (GTK3 / WebKitGTK-4.1) desktop widget shell.
 
 The Linux twin of the Windows ``app.py``.  It wires the finished media layer
 (``media_linux.py``) and the finished UI (``web/index.html`` + ``web/app.js`` +
@@ -43,16 +43,16 @@ import time
 import traceback
 
 # ---------------------------------------------------------------------------
-# debug diagnostics (same switch as the Windows twin: --debug or CRT_DEBUG)
+# debug diagnostics (same switch as the Windows twin: --debug or RETRO_DEBUG)
 # ---------------------------------------------------------------------------
-DEBUG = bool(os.environ.get('CRT_DEBUG'))
+DEBUG = bool(os.environ.get('RETRO_DEBUG'))
 
 
 def _dbg(message: str) -> None:
     if not DEBUG:
         return
     try:
-        print('[crt] %s' % message, file=sys.stderr, flush=True)
+        print('[retro] %s' % message, file=sys.stderr, flush=True)
     except Exception:
         pass
 
@@ -64,8 +64,8 @@ PROJECT = os.path.dirname(os.path.abspath(__file__))          # .../linux
 ROOT = os.path.dirname(PROJECT)                               # repo root
 PAGE = os.path.join(ROOT, 'web', 'index.html')
 
-WINDOW_TITLE = 'CRT-MEDIA'
-APP_NAME = 'crt-media-widget'
+WINDOW_TITLE = 'RETRO-CONTROLLER'
+APP_NAME = 'retro-controller'
 VIEW_W, VIEW_H = 360, 400                   # design CSS viewport (startup size)
 VIEW_MIN_W, VIEW_MIN_H = 260, 290           # user-resize clamp, CSS pixels
 VIEW_MAX_W, VIEW_MAX_H = 900, 1000          # user-resize clamp, CSS pixels
@@ -107,7 +107,7 @@ APPINDICATOR_TYPELIB = 'AyatanaAppIndicator3'
 # diagnostics with no console
 # ---------------------------------------------------------------------------
 def _log(message: str) -> None:
-    """Append one line to ~/.local/state/crt-media-widget/widget.log."""
+    """Append one line to ~/.local/state/retro-controller/widget.log."""
     try:
         os.makedirs(STATE_DIR, exist_ok=True)
         with open(LOG_FILE, 'a', encoding='utf-8') as fh:
@@ -372,7 +372,7 @@ def run_preflight(report=False, dialog=True) -> int:
     blocking_failures = []
     for kind, name, ok, detail in results:
         marker = 'ok  ' if ok else ('FAIL' if kind == 'block' else 'warn')
-        line = '[crt] preflight %s %-28s %s' % (marker, name, detail)
+        line = '[retro] preflight %s %-28s %s' % (marker, name, detail)
         if kind == 'block' and not ok:
             blocking_failures.append((name, detail))
         if report or DEBUG or (kind == 'block' and not ok):
@@ -382,7 +382,7 @@ def run_preflight(report=False, dialog=True) -> int:
     if not blocking_failures:
         return EXIT_OK
 
-    lines = ['CRT-MEDIA cannot start: a component the widget needs is missing '
+    lines = ['RETRO-CONTROLLER cannot start: a component the widget needs is missing '
              'or not reachable.', '']
     for name, detail in blocking_failures:
         lines.append('* %s' % name)
@@ -396,7 +396,7 @@ def run_preflight(report=False, dialog=True) -> int:
               '    ./linux/selfcheck.sh']
     text = '\n'.join(lines)
     print(text, file=sys.stderr, flush=True)
-    if dialog and not os.environ.get('CRT_PREFLIGHT_NO_DIALOG'):
+    if dialog and not os.environ.get('RETRO_PREFLIGHT_NO_DIALOG'):
         _notify(text)
     return EXIT_MISSING_PREREQ
 
@@ -427,7 +427,7 @@ def make_icon_image(size: int = 64):
 # single instance
 # ---------------------------------------------------------------------------
 def acquire_single_instance():
-    """flock guard on ~/.local/state/crt-media-widget/widget.lock.
+    """flock guard on ~/.local/state/retro-controller/widget.lock.
 
     Returns the open file object (keep it alive), or None when another
     instance already holds the lock.
@@ -761,7 +761,7 @@ class Widget:
             # Safety rule, not a preference: click-through makes the window
             # unclickable, so it must be recoverable from a tray icon.  With no
             # tray there is no way back, so refuse rather than trap the user.
-            msg = ('CRT-MEDIA refused to enable click-through: no tray icon '
+            msg = ('RETRO-CONTROLLER refused to enable click-through: no tray icon '
                    'backend is available, so it could not be turned off again. '
                    'Install %s (sudo apt install %s) and restart the widget.'
                    % (APT_APPINDICATOR, APT_APPINDICATOR))
@@ -803,7 +803,7 @@ class Widget:
         if self._wayland_reported:
             return
         self._wayland_reported = True
-        text = ('CRT-MEDIA is running in a Wayland session. Always-on-top and '
+        text = ('RETRO-CONTROLLER is running in a Wayland session. Always-on-top and '
                 'click-through are X11-only, so both are unavailable, and the '
                 'window cannot be repositioned by the widget either. Log out '
                 'and choose an X11 session for the full behaviour.')
@@ -1062,9 +1062,9 @@ class Widget:
             _log('binding failure at show: %s' % exc)
             self.force_quit()
             return
-        # Window-list icon: do not brand prgname/WM class as CRT-MEDIA.
+        # Window-list icon: do not brand prgname/WM class as RETRO-CONTROLLER.
         # That matches StartupWMClass on the .desktop entry, Cinnamon then
-        # uses Icon=crt-media-widget (SVG-only) and the panel tile goes blank.
+        # uses Icon=retro-controller (SVG-only) and the panel tile goes blank.
         # Leaving the interpreter/script identity restores the generic gear.
         try:
             win = self._gtk_window()
@@ -1091,21 +1091,21 @@ class Widget:
         """Runs on a pywebview worker thread once the GUI loop is up."""
         try:
             if not self.win.events.loaded.wait(30):
-                print('[crt] page did not load within 30s', file=sys.stderr)
+                print('[retro] page did not load within 30s', file=sys.stderr)
                 self.force_quit()
                 return
 
             want_w, want_h = self._want_view
             settled = self._settle_viewport(want_w, want_h)
             if settled is None:
-                print('[crt] viewport never settled at %dx%d' % (want_w, want_h),
+                print('[retro] viewport never settled at %dx%d' % (want_w, want_h),
                       file=sys.stderr)
             else:
-                print('[crt] viewport settled at %dx%d' % settled, flush=True)
+                print('[retro] viewport settled at %dx%d' % settled, flush=True)
 
             try:
                 self.win.evaluate_js(
-                    'window.__crtApplyZoom && window.__crtApplyZoom()')
+                    'window.__retroApplyZoom && window.__retroApplyZoom()')
             except Exception:
                 pass
 
@@ -1114,11 +1114,11 @@ class Widget:
                 self._geometry_ready.set()
                 self.save_window_geometry()
             else:
-                print('[crt] geometry not verified at %dx%d; leaving %s untouched'
+                print('[retro] geometry not verified at %dx%d; leaving %s untouched'
                       % (want_w, want_h, GEOMETRY_FILE), file=sys.stderr)
 
             threading.Thread(target=self._position_watcher, daemon=True).start()
-            print('[crt] widget ready: %s' % WINDOW_TITLE, flush=True)
+            print('[retro] widget ready: %s' % WINDOW_TITLE, flush=True)
         except Exception:
             traceback.print_exc()
             self.force_quit()
@@ -1157,7 +1157,7 @@ class Widget:
             # GLib's idle queue, which _on_gtk() marshals safely.
             threading.Thread(target=icon.run, daemon=True).start()
             self.tray_ok = True
-            print('[crt] tray icon started (pystray)', flush=True)
+            print('[retro] tray icon started (pystray)', flush=True)
             _log('tray icon started (pystray)')
             return
         except Exception as exc:
@@ -1169,7 +1169,7 @@ class Widget:
             return
         _log('no tray backend available; the widget runs without a tray and '
              'click-through will be refused')
-        print('[crt] warning: no tray icon backend available', file=sys.stderr)
+        print('[retro] warning: no tray icon backend available', file=sys.stderr)
 
     def _start_indicator_direct(self) -> bool:
         """Drive AyatanaAppIndicator3 (or AppIndicator3) straight through gi."""
@@ -1197,7 +1197,7 @@ class Widget:
             indicator = AppIndicator.Indicator.new(
                 APP_NAME, icon_arg, AppIndicator.IndicatorCategory.APPLICATION_STATUS)
             try:
-                # Hover / accessibility label: CRT-MEDIA, not the script name.
+                # Hover / accessibility label: RETRO-CONTROLLER, not the script name.
                 indicator.set_title(WINDOW_TITLE)
             except Exception:
                 pass
@@ -1225,7 +1225,7 @@ class Widget:
             indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
             self.indicator = indicator
             self.tray_ok = True
-            print('[crt] tray icon started (AyatanaAppIndicator3 direct)',
+            print('[retro] tray icon started (AyatanaAppIndicator3 direct)',
                   flush=True)
             _log('tray icon started (AyatanaAppIndicator3 direct)')
             return True
@@ -1455,14 +1455,14 @@ def main(argv=None) -> int:
     if preflight != 0:
         return preflight
     if '--preflight' in argv:
-        print('[crt] preflight: every required component is present', flush=True)
-        print('[crt] media layer: %s' % _media_probe_line(), flush=True)
+        print('[retro] preflight: every required component is present', flush=True)
+        print('[retro] media layer: %s' % _media_probe_line(), flush=True)
         return EXIT_OK
 
     lock = acquire_single_instance()
     if lock is None:
-        msg = 'CRT-MEDIA is already running (look for its tray icon).'
-        print('[crt] ' + msg, file=sys.stderr)
+        msg = 'RETRO-CONTROLLER is already running (look for its tray icon).'
+        print('[retro] ' + msg, file=sys.stderr)
         if not debug:
             _notify(msg)
         return EXIT_RUNNING
@@ -1470,7 +1470,7 @@ def main(argv=None) -> int:
     widget = Widget()
     try:
         import webview
-        # No GLib.set_prgname('CRT-MEDIA'): that ties the window to the
+        # No GLib.set_prgname('RETRO-CONTROLLER'): that ties the window to the
         # .desktop StartupWMClass and a blank SVG taskbar tile on Cinnamon.
         # Tray title is set separately in start_tray().
         widget.setup_window()
@@ -1487,7 +1487,7 @@ def main(argv=None) -> int:
         return EXIT_CRASH
 
     widget.cleanup()
-    print('[crt] exited cleanly', flush=True)
+    print('[retro] exited cleanly', flush=True)
     return EXIT_OK
 
 
@@ -1502,7 +1502,7 @@ def _entry() -> int:
         tb = traceback.format_exc()
         _log('CRASH:\n' + tb)
         tail = '\n'.join(tb.strip().splitlines()[-6:])
-        _notify('CRT-MEDIA crashed and has stopped.\n\n%s\n\nFull log:\n%s'
+        _notify('RETRO-CONTROLLER crashed and has stopped.\n\n%s\n\nFull log:\n%s'
                 % (tail, LOG_FILE))
         return EXIT_CRASH
 

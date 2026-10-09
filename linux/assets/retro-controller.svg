@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <title>CRT-MEDIA</title>
+  <title>RETRO-CONTROLLER</title>
   <!-- Pixel-art CRT in the project palette: --bg #06120A, --dim #1E7A34,
        --base #33FF66, --bright #A6FFB8.  Same drawing as the Windows tray
        icon (app.py make_icon_image) and the GTK tray icon. -->

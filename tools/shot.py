@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CRT-MEDIA screenshot harness (ui agent).
+"""RETRO-CONTROLLER screenshot harness (ui agent).
 
 Loads web/index.html in a real pywebview window sized to a 360x400 CSS-pixel
 viewport at a fixed screen position, captures that exact screen region with
@@ -36,7 +36,7 @@ import traceback
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGE = os.path.join(PROJECT, 'web', 'index.html')
-WINDOW_TITLE = 'CRT-MEDIA-SHOT'
+WINDOW_TITLE = 'RETRO-CONTROLLER-SHOT'
 
 VIEW_W, VIEW_H = 360, 400
 DEFAULT_POS = (2160, 980)          # near the bottom-right of the primary screen
@@ -244,7 +244,7 @@ def report_shot(name, path, stats):
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description='CRT-MEDIA screenshot harness')
+    ap = argparse.ArgumentParser(description='RETRO-CONTROLLER screenshot harness')
     ap.add_argument('--demo', default='1', help='1 => append demo=1 (default 1)')
     ap.add_argument('--out', required=True, help='settled-shot PNG path')
     ap.add_argument('--wait', type=float, default=3.0, help='seconds after load before the settled shot')
@@ -286,9 +286,9 @@ def main(argv=None) -> int:
 
     import webview
 
-    print('[crt-shot] page      %s' % PAGE)
-    print('[crt-shot] url       %s' % url)
-    print('[crt-shot] dpi=%s  virtual_origin=%s  requested_pos=(%d,%d)  viewport=%dx%d'
+    print('[retro-shot] page      %s' % PAGE)
+    print('[retro-shot] url       %s' % url)
+    print('[retro-shot] dpi=%s  virtual_origin=%s  requested_pos=(%d,%d)  viewport=%dx%d'
           % (dpi_mode, origin, args.x, args.y, args.width, args.height))
 
     def watchdog():
@@ -353,7 +353,7 @@ def main(argv=None) -> int:
             if fixed is None:
                 raise RuntimeError('viewport never settled at %dx%d (last %s)'
                                    % (args.width, args.height, vp))
-            print('[crt-shot] viewport settled at %dx%d (pywebview pre-adjusts by '
+            print('[retro-shot] viewport settled at %dx%d (pywebview pre-adjusts by '
                   'its own frame delta)' % fixed)
 
             # the backdrop plate is also topmost: keep the widget above it
@@ -363,7 +363,7 @@ def main(argv=None) -> int:
             rect = find_window_rect(os.getpid(), WINDOW_TITLE)
             if rect is None:
                 raise RuntimeError('could not locate the harness window on screen')
-            print('[crt-shot] window_rect(physical)=%s  size=%dx%d  primary=%s'
+            print('[retro-shot] window_rect(physical)=%s  size=%dx%d  primary=%s'
                   % (rect, rect[2] - rect[0], rect[3] - rect[1], primary_monitor_rect()))
 
             def shoot(name, path):
@@ -461,16 +461,16 @@ def main(argv=None) -> int:
             dirty.append('%s shot content starts inset %s px: capture region probably '
                          'mis-aligned with the window' % (name, ins))
 
-    print('[crt-shot] shots=%d  mean_brightness=%s'
+    print('[retro-shot] shots=%d  mean_brightness=%s'
           % (len(shots), [s['mean_brightness'] for _n, _p, s in shots]))
     if dirty:
-        print('[crt-shot] METRICS: DIRTY')
+        print('[retro-shot] METRICS: DIRTY')
         for d in dirty:
             print('   - ' + d)
         if not args.allow_dirty:
             return 5
     else:
-        print('[crt-shot] METRICS: CLEAN (no overflow, no scrollbars, font loaded, '
+        print('[retro-shot] METRICS: CLEAN (no overflow, no scrollbars, font loaded, '
               'contrast>=4.5, hit targets>=44x36, capture not blank)')
     return 0
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""tools/build_portable.py - build the "no Python installed" CRT-MEDIA bundle.
+"""tools/build_portable.py - build the "no Python installed" RETRO-CONTROLLER bundle.
 
     <proj>/.venv/Scripts/python.exe tools/build_portable.py
 
 Output (both re-runnable - the script wipes and rebuilds them):
 
-    dist/CRT-MEDIA-<ver>-portable/       the bundle, runnable in place
-    dist/CRT-MEDIA-<ver>-portable.zip    the distributable (prints size + sha256)
+    dist/RETRO-CONTROLLER-<ver>-portable/       the bundle, runnable in place
+    dist/RETRO-CONTROLLER-<ver>-portable.zip    the distributable (prints size + sha256)
 
 ``<ver>`` is read from the VERSION file at the project root - the single place
 the version lives, so nothing here has to be edited for a release.  Pass
@@ -28,7 +28,7 @@ What it does, in order
        need a C compiler fails the build instead of half-working
     5. copies the app files, the window icon (assets/) and web/ (no dev/, no
        CONTRACT.md, no .venv)
-    6. writes the CRT-MEDIA.vbs / CRT-MEDIA.bat launchers and FIRST-RUN.txt
+    6. writes the RETRO-CONTROLLER.vbs / RETRO-CONTROLLER.bat launchers and FIRST-RUN.txt
     7. VERIFIES the finished bundle by running its own python: every runtime
        import, then a real MediaController.get_state() against the live
        Windows media API - the build fails and leaves the tree for inspection
@@ -85,7 +85,7 @@ def read_version(override: str = None) -> str:
 
 
 def bundle_name(version: str) -> str:
-    return "CRT-MEDIA-%s-portable" % version
+    return "RETRO-CONTROLLER-%s-portable" % version
 
 
 EMBED_URL = "https://www.python.org/ftp/python/{v}/python-{v}-embed-amd64.zip"
@@ -95,7 +95,7 @@ VERSION_CANDIDATES = ["3.14.7", "3.14.6", "3.14.5", "3.14.4", "3.14.3", "3.14.2"
                       "3.14.1", "3.14.0"]
 
 APP_FILES = ["app.py", "media.py", "media_selftest.py",
-             "assets/crt-media-widget.ico"]   # the window/taskbar icon app.py loads
+             "assets/retro-controller.ico"]   # the window/taskbar icon app.py loads
 APP_DIRS = ["web"]                       # includes web/fonts/
 DOC_FILES = ["README.md", "requirements.txt", "VERSION"]
 FIRST_RUN_SRC = ROOT / "tools" / "PORTABLE-FIRST-RUN.txt"
@@ -112,7 +112,7 @@ PURE_PYTHON_SDIST = ["proxy-tools"]
 EXCLUDE_NAMES = ("dev", ".venv", "CONTRACT.md", ".git")
 EXCLUDE_SUFFIXES = (".pyc", ".pyo")
 
-VBS_LAUNCHER = """' CRT-MEDIA // portable silent launcher.
+VBS_LAUNCHER = """' RETRO-CONTROLLER // portable silent launcher.
 ' Requires nothing installed: the widget runs on the private CPython copy in
 ' the "python" folder next to this file.
 Option Explicit
@@ -127,17 +127,17 @@ pyw = here & "\\python\\pythonw.exe"
 app = here & "\\app.py"
 
 If Not fso.FileExists(app) Then
-  MsgBox "CRT-MEDIA: app.py is missing from:" & vbCrLf & vbCrLf & here & _
+  MsgBox "RETRO-CONTROLLER: app.py is missing from:" & vbCrLf & vbCrLf & here & _
          vbCrLf & vbCrLf & "This folder looks incomplete - extract the whole " & _
-         "CRT-MEDIA zip again, keeping the folder structure.", 16, "CRT-MEDIA"
+         "RETRO-CONTROLLER zip again, keeping the folder structure.", 16, "RETRO-CONTROLLER"
   WScript.Quit 2
 End If
 
 If Not fso.FileExists(pyw) Then
-  MsgBox "CRT-MEDIA: the bundled Python runtime is missing:" & vbCrLf & vbCrLf & _
+  MsgBox "RETRO-CONTROLLER: the bundled Python runtime is missing:" & vbCrLf & vbCrLf & _
          pyw & vbCrLf & vbCrLf & "This folder looks incomplete - extract the " & _
-         "whole CRT-MEDIA zip again, keeping the folder structure." & vbCrLf & _
-         "If you built this from source, re-run tools\\build_portable.py.", 16, "CRT-MEDIA"
+         "whole RETRO-CONTROLLER zip again, keeping the folder structure." & vbCrLf & _
+         "If you built this from source, re-run tools\\build_portable.py.", 16, "RETRO-CONTROLLER"
   WScript.Quit 2
 End If
 
@@ -148,8 +148,8 @@ WScript.Quit 0
 """
 
 BAT_LAUNCHER = """@echo off
-rem CRT-MEDIA // portable troubleshooting launcher: keeps a console open with
-rem the widget's log. For the normal, silent start use CRT-MEDIA.vbs.
+rem RETRO-CONTROLLER // portable troubleshooting launcher: keeps a console open with
+rem the widget's log. For the normal, silent start use RETRO-CONTROLLER.vbs.
 setlocal
 set "HERE=%~dp0"
 set "PY=%HERE%python\\python.exe"
@@ -158,28 +158,28 @@ set "APP=%HERE%app.py"
 if not exist "%APP%" goto :noapp
 if not exist "%PY%" goto :noruntime
 
-echo [CRT-MEDIA] starting the widget in debug mode (close this window to be
-echo [CRT-MEDIA] sure you have the log if it misbehaves).
+echo [RETRO-CONTROLLER] starting the widget in debug mode (close this window to be
+echo [RETRO-CONTROLLER] sure you have the log if it misbehaves).
 echo.
 "%PY%" "%APP%" --debug
 set "RC=%errorlevel%"
 echo.
-echo [CRT-MEDIA] the widget exited with code %RC%.
+echo [RETRO-CONTROLLER] the widget exited with code %RC%.
 pause
 exit /b %RC%
 
 :noapp
-echo [CRT-MEDIA] ERROR: app.py is missing from:
+echo [RETRO-CONTROLLER] ERROR: app.py is missing from:
 echo             %HERE%
-echo             This folder looks incomplete - extract the whole CRT-MEDIA
+echo             This folder looks incomplete - extract the whole RETRO-CONTROLLER
 echo             zip again, keeping the folder structure.
 pause
 exit /b 2
 
 :noruntime
-echo [CRT-MEDIA] ERROR: the bundled Python runtime is missing:
+echo [RETRO-CONTROLLER] ERROR: the bundled Python runtime is missing:
 echo             %PY%
-echo             This folder looks incomplete - extract the whole CRT-MEDIA
+echo             This folder looks incomplete - extract the whole RETRO-CONTROLLER
 echo             zip again, keeping the folder structure.
 pause
 exit /b 2
@@ -361,7 +361,7 @@ def patch_pth(runtime_dir: Path) -> Path:
         die("%s names %r, which is not in the runtime folder" % (pth.name, stdlib_zip))
 
     body = [
-        "# CRT-MEDIA portable runtime - paths are relative to this folder.",
+        "# RETRO-CONTROLLER portable runtime - paths are relative to this folder.",
         stdlib_zip,
         ".",
         "Lib\\site-packages",      # the installed wheels
@@ -430,9 +430,9 @@ def assemble(bundle: Path) -> None:
         if hits:
             die("excluded path leaked into the bundle: %s" % hits)
 
-    (bundle / "CRT-MEDIA.vbs").write_text(VBS_LAUNCHER, encoding="ascii", newline="")
-    (bundle / "CRT-MEDIA.bat").write_text(BAT_LAUNCHER, encoding="ascii", newline="")
-    step("wrote CRT-MEDIA.vbs (silent) and CRT-MEDIA.bat (visible console)")
+    (bundle / "RETRO-CONTROLLER.vbs").write_text(VBS_LAUNCHER, encoding="ascii", newline="")
+    (bundle / "RETRO-CONTROLLER.bat").write_text(BAT_LAUNCHER, encoding="ascii", newline="")
+    step("wrote RETRO-CONTROLLER.vbs (silent) and RETRO-CONTROLLER.bat (visible console)")
 
 
 def verify_bundle(bundle: Path) -> dict:
@@ -553,7 +553,7 @@ def main(argv=None) -> int:
     print("  media probe  has_session=%s app=%s status=%s volume=%s"
           % (report["media"].get("has_session"), report["media"].get("app_name"),
              report["media"].get("status"), report["media"].get("volume")))
-    print("  start with   CRT-MEDIA.vbs   (or CRT-MEDIA.bat to see the log)")
+    print("  start with   RETRO-CONTROLLER.vbs   (or RETRO-CONTROLLER.bat to see the log)")
     print("=" * 72)
     return 0
 

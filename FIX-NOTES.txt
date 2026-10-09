@@ -1,4 +1,4 @@
-CRT-MEDIA Linux — fix notes (for this pack)
+RETRO-CONTROLLER Linux — fix notes (for this pack)
 ==========================================
 
 Base: upstream v1.1.1
@@ -31,15 +31,15 @@ What was broken / what we fixed
 
 How to install this pack
 ------------------------
-  tar -xzf crt-media-widget-1.1.1-linux-fix.tar.gz
-  cd crt-media-widget-1.1.1-linux-fix
+  tar -xzf retro-controller-1.1.1-linux-fix.tar.gz
+  cd retro-controller-1.1.1-linux-fix
   ./linux/selfcheck.sh
   ./linux/setup.sh --no-autostart
   ./linux/run.sh --debug
 
 If --no-autostart is not accepted:
   ./linux/setup.sh
-  rm -f ~/.config/autostart/crt-media-widget.desktop
+  rm -f ~/.config/autostart/retro-controller.desktop
   ./linux/run.sh --debug
 
 Usage tips

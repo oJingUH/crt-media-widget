@@ -1,9 +1,9 @@
-CRT-MEDIA // PORTABLE - first run
+RETRO-CONTROLLER // PORTABLE - first run
 =================================
 
 What this is
 ------------
-A self-contained copy of the CRT-MEDIA desktop widget: a green-phosphor CRT
+A self-contained copy of the RETRO-CONTROLLER desktop widget: a green-phosphor CRT
 panel that shows and controls whatever media session Windows is publishing
 (Spotify, a browser tab, Media Player - anything that speaks SMTC), plus the
 system volume through Core Audio.
@@ -15,12 +15,12 @@ and nothing is left behind.
 
 This is the portable zip from the releases page. If you ever need a newer one,
 take the current zip from
-    https://github.com/oJingUH/crt-media-widget/releases/latest
+    https://github.com/oJingUH/retro-controller/releases/latest
 extract it the same way, and delete this folder.
 
 Start it (two clicks)
 ---------------------
-    Double-click  CRT-MEDIA.vbs
+    Double-click  RETRO-CONTROLLER.vbs
 
 That is the normal start: no console window, the widget appears in the
 bottom-right of the primary screen. The tray icon (a small pixel CRT in the
@@ -28,12 +28,12 @@ notification area, behind the hidden-icons chevron the first time) can toggle
 always-on-top, click-through and reset the position, and it holds the Quit
 item.
 
-    Double-click  CRT-MEDIA.bat
+    Double-click  RETRO-CONTROLLER.bat
 
 is the troubleshooting start: it keeps a console window open showing the
 widget's log. If something misbehaves, run this one and read the console.
 
-To start it automatically with Windows, put a shortcut to CRT-MEDIA.vbs in
+To start it automatically with Windows, put a shortcut to RETRO-CONTROLLER.vbs in
 your Startup folder (Win+R -> shell:startup).
 
 Requirements
@@ -56,7 +56,7 @@ If it will not start
 --------------------
 1) Nothing happens at all.  You should have seen a dialog box naming whichever
    of the two requirements above is missing, with the download link in it - the
-   silent launcher (CRT-MEDIA.vbs) hides the log completely, which is exactly
+   silent launcher (RETRO-CONTROLLER.vbs) hides the log completely, which is exactly
    why a missing component is reported in a dialog box instead.
 
    To see what the check read, open a Command Prompt in this folder and run:
@@ -70,7 +70,7 @@ If it will not start
    that starts a python.exe it carries itself is the shape of thing SmartScreen
    and some antivirus products stop to ask about, and a zip you downloaded
    carries the "mark of the web". Click "More info" -> "Run anyway" on the
-   SmartScreen prompt, or start the widget with CRT-MEDIA.bat instead (same
+   SmartScreen prompt, or start the widget with RETRO-CONTROLLER.bat instead (same
    widget, visible console). This build installs nothing, needs no admin rights
    and writes only your window position - but that does not stop the first
    prompt.
@@ -85,7 +85,7 @@ If it will not start
 
 Where it keeps things
 ---------------------
-    %LOCALAPPDATA%\crt-media-widget\position.json
+    %LOCALAPPDATA%\retro-controller\position.json
 
 is the only file it writes: the last window position and size. Delete that
 file (or use the tray item "Reset position") to snap the widget back to the

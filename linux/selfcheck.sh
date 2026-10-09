@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ===========================================================================
-#  CRT-MEDIA // selfcheck (Linux)
+#  RETRO-CONTROLLER // selfcheck (Linux)
 #
 #  THE FIRST THING TO RUN.  It works before setup.sh has ever been run, needs
 #  no virtual environment, and changes nothing on the machine: it only reads.
@@ -37,7 +37,7 @@ hr()   { printf '\n-------------------------------------------------------------
 section() { hr; printf ' %s. %s\n' "$1" "$2"; hr; }
 
 printf '===========================================================================\n'
-printf ' CRT-MEDIA // selfcheck\n'
+printf ' RETRO-CONTROLLER // selfcheck\n'
 printf '===========================================================================\n'
 printf ' project    %s\n' "$ROOT"
 printf ' python3    %s (%s)\n' "$PY" "$("$PY" --version 2>&1)"
@@ -292,11 +292,11 @@ else
   # A short-lived off-screen window proves the full round trip through the
   # window manager without flashing anything in the middle of the screen.
   if command -v timeout >/dev/null 2>&1; then
-    if timeout 20 "$GTK_TEST" - <<'PY' >/tmp/.crt-selfcheck-gtk.$$ 2>&1
+    if timeout 20 "$GTK_TEST" - <<'PY' >/tmp/.retro-selfcheck-gtk.$$ 2>&1
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib
-w = Gtk.Window(title='crt-selfcheck')
+w = Gtk.Window(title='retro-selfcheck')
 w.set_skip_taskbar_hint(True)
 w.set_default_size(120, 80)
 w.move(-4000, -4000)
@@ -307,12 +307,12 @@ print('window shown and closed')
 PY
     then
       ok "a Gtk.Window was shown and closed by the window manager"
-      cat /tmp/.crt-selfcheck-gtk.$$
+      cat /tmp/.retro-selfcheck-gtk.$$
     else
       warn "could not show a Gtk.Window (output below)"
-      cat /tmp/.crt-selfcheck-gtk.$$
+      cat /tmp/.retro-selfcheck-gtk.$$
     fi
-    rm -f /tmp/.crt-selfcheck-gtk.$$
+    rm -f /tmp/.retro-selfcheck-gtk.$$
   else
     note "no 'timeout' command: skipped the live window test so nothing can hang"
   fi

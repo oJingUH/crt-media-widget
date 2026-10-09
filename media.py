@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""media.py - Windows media control layer for the CRT media widget.
+"""media.py - Windows media control layer for the Retro Controller.
 
 Frozen interface (see CONTRACT.md): the public surface of ``MediaController`` is
 exactly::
@@ -78,8 +78,8 @@ TICKS_PER_SECOND = 10_000_000  # TimeSpan is 100 ns ticks
 
 # One-line diagnostics for otherwise-silent best-effort failures, only when a
 # debug/verbose flag is on: `--debug` (as `run.cmd --debug` passes it) or the
-# CRT_DEBUG environment variable.  No logging framework, no new dependency.
-_DEBUG = bool(os.environ.get("CRT_DEBUG")) or ("--debug" in sys.argv)
+# RETRO_DEBUG environment variable.  No logging framework, no new dependency.
+_DEBUG = bool(os.environ.get("RETRO_DEBUG")) or ("--debug" in sys.argv)
 
 
 def _debug(message: str) -> None:
@@ -87,7 +87,7 @@ def _debug(message: str) -> None:
     if not _DEBUG:
         return
     try:
-        print("[crt-media] %s" % message, file=sys.stderr, flush=True)
+        print("[retro-media] %s" % message, file=sys.stderr, flush=True)
     except Exception:
         pass
 
@@ -313,7 +313,7 @@ class _Worker(threading.Thread):
     """Owns the WinRT session manager, the pycaw endpoint and the event loop."""
 
     def __init__(self, owner: "MediaController") -> None:
-        super().__init__(name="crt-media-worker", daemon=True)
+        super().__init__(name="retro-media-worker", daemon=True)
         self._owner = owner
         self.loop: "asyncio.AbstractEventLoop | None" = None
         self._ready = threading.Event()

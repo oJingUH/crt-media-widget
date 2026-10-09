@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CRT-MEDIA // desktop widget shell.
+"""RETRO-CONTROLLER // desktop widget shell.
 
 Wires the finished media layer (``media.py``) and the finished UI
 (``web/index.html`` + ``web/app.js`` + ``web/style.css``) into a real
@@ -40,16 +40,16 @@ import winreg
 # ---------------------------------------------------------------------------
 # Best-effort failures (remembering the window position, and the artwork
 # extraction in media.py) are deliberately non-fatal, but they must not be
-# invisible: with --debug (run.cmd --debug) or CRT_DEBUG set, print one line
+# invisible: with --debug (run.cmd --debug) or RETRO_DEBUG set, print one line
 # to stderr so a silent failure is diagnosable.  No logging framework.
-DEBUG = bool(os.environ.get('CRT_DEBUG'))
+DEBUG = bool(os.environ.get('RETRO_DEBUG'))
 
 
 def _dbg(message: str) -> None:
     if not DEBUG:
         return
     try:
-        print('[crt] %s' % message, file=sys.stderr, flush=True)
+        print('[retro] %s' % message, file=sys.stderr, flush=True)
     except Exception:
         pass
 
@@ -67,9 +67,9 @@ PAGE = os.path.join(PROJECT, 'web', 'index.html')
 # resolve identically whether the widget runs from this repo or from the
 # extracted portable bundle.  A missing file is not fatal - pywebview silently
 # keeps its default - so the fallback is guarded rather than assumed.
-ICON = os.path.join(PROJECT, 'assets', 'crt-media-widget.ico')
+ICON = os.path.join(PROJECT, 'assets', 'retro-controller.ico')
 
-WINDOW_TITLE = 'CRT-MEDIA'
+WINDOW_TITLE = 'RETRO-CONTROLLER'
 VIEW_W, VIEW_H = 360, 400                   # design CSS viewport (startup size)
 VIEW_MIN_W, VIEW_MIN_H = 260, 290           # user-resize clamp, CSS pixels
 VIEW_MAX_W, VIEW_MAX_H = 900, 1000          # user-resize clamp, CSS pixels
@@ -91,10 +91,10 @@ SETTLE_MAX_STEPS = 24                       # hard bound on resize steps
 # user resize is a deliberate, much larger change.
 SIZE_INTENT_TOL = 64
 BACKGROUND_COLOR = '#06120A'                # --bg; opaque, so no light halo
-SINGLETON_NAME = 'Local\\crt-media-widget-singleton'
+SINGLETON_NAME = 'Local\\retro-controller-singleton'
 
 _local_appdata = os.environ.get('LOCALAPPDATA') or os.path.expanduser('~')
-APP_DIR = os.path.join(_local_appdata, 'crt-media-widget')
+APP_DIR = os.path.join(_local_appdata, 'retro-controller')
 POSITION_FILE = os.path.join(APP_DIR, 'position.json')
 
 # --- startup preflight -----------------------------------------------------
@@ -128,16 +128,16 @@ NETFX_URL = 'https://dotnet.microsoft.com/download/dotnet-framework/net48'
 EXIT_MISSING_PREREQ = 3                      # distinct from 1 (running) / 2 (crash)
 
 # Test hooks for the preflight only - never needed to run the widget:
-#   CRT_PREFLIGHT_REG_ROOT=<path>  pretend HKLM/HKCU hold nothing under it
+#   RETRO_PREFLIGHT_REG_ROOT=<path>  pretend HKLM/HKCU hold nothing under it
 #                                  (e.g. SOFTWARE\__no_such_root__) so the
 #                                  real "not installed" path can be shown
 #                                  without uninstalling anything;
-#   CRT_PREFLIGHT_FAKE_MISSING=webview2|dotnet|both   force that branch;
-#   CRT_PREFLIGHT_NO_DIALOG=1      print the message but skip the MessageBoxW
+#   RETRO_PREFLIGHT_FAKE_MISSING=webview2|dotnet|both   force that branch;
+#   RETRO_PREFLIGHT_NO_DIALOG=1      print the message but skip the MessageBoxW
 #                                  (so an automated run cannot block on a modal).
-PREFLIGHT_REG_ROOT = os.environ.get('CRT_PREFLIGHT_REG_ROOT') or 'SOFTWARE'
-PREFLIGHT_FAKE = (os.environ.get('CRT_PREFLIGHT_FAKE_MISSING') or '').strip().lower()
-PREFLIGHT_NO_DIALOG = bool(os.environ.get('CRT_PREFLIGHT_NO_DIALOG'))
+PREFLIGHT_REG_ROOT = os.environ.get('RETRO_PREFLIGHT_REG_ROOT') or 'SOFTWARE'
+PREFLIGHT_FAKE = (os.environ.get('RETRO_PREFLIGHT_FAKE_MISSING') or '').strip().lower()
+PREFLIGHT_NO_DIALOG = bool(os.environ.get('RETRO_PREFLIGHT_NO_DIALOG'))
 
 # ---------------------------------------------------------------------------
 # win32
@@ -234,7 +234,7 @@ def _exc_name(exc) -> str:
 
 
 def _preflight_path(path: str) -> str:
-    """Apply the CRT_PREFLIGHT_REG_ROOT test override (identity by default)."""
+    """Apply the RETRO_PREFLIGHT_REG_ROOT test override (identity by default)."""
     if PREFLIGHT_REG_ROOT.upper() == 'SOFTWARE':
         return path
     if path.upper().startswith('SOFTWARE\\') or path.upper() == 'SOFTWARE':
@@ -250,7 +250,7 @@ def _reg_label(hive, path: str) -> str:
 
 
 def _preflight_override(which: str, ok: bool, detail: str):
-    """Apply the CRT_PREFLIGHT_FAKE_MISSING test override to a result.
+    """Apply the RETRO_PREFLIGHT_FAKE_MISSING test override to a result.
 
     ``which`` is 'webview2' or 'dotnet'.  The override flips only the verdict -
     the registry is still read (and its raw value reported), so the test can
@@ -258,10 +258,10 @@ def _preflight_override(which: str, ok: bool, detail: str):
     without that machine being uninstalled, renamed or otherwise touched.
     """
     if PREFLIGHT_FAKE in (which, 'both'):
-        return False, ('forced MISSING by CRT_PREFLIGHT_FAKE_MISSING=%s '
+        return False, ('forced MISSING by RETRO_PREFLIGHT_FAKE_MISSING=%s '
                        '[registry said: %s]' % (PREFLIGHT_FAKE, detail))
     if PREFLIGHT_FAKE in ('webview2', 'dotnet') and PREFLIGHT_FAKE != which:
-        return True, ('forced PRESENT by CRT_PREFLIGHT_FAKE_MISSING=%s '
+        return True, ('forced PRESENT by RETRO_PREFLIGHT_FAKE_MISSING=%s '
                       '[registry said: %s]' % (PREFLIGHT_FAKE, detail))
     return ok, detail
 
@@ -339,7 +339,7 @@ def preflight_results():
 
 def preflight_message(results) -> str:
     """The text a stranger reads: what is missing, what to install, from where."""
-    lines = ['CRT-MEDIA cannot start: this machine is missing a Windows '
+    lines = ['RETRO-CONTROLLER cannot start: this machine is missing a Windows '
              'component the widget needs.', '']
     if not results['webview2'][0]:
         lines += [
@@ -359,7 +359,7 @@ def preflight_message(results) -> str:
             '',
         ]
     lines += [
-        'Install the missing piece(s) above, then start CRT-MEDIA again.',
+        'Install the missing piece(s) above, then start RETRO-CONTROLLER again.',
         'The portable build needs neither Python nor administrator rights -',
         'these two Windows components are the only things it expects to find',
         'on the machine already.',
@@ -375,7 +375,7 @@ def run_preflight(report: bool = False, dialog: bool = True) -> int:
     ``report`` prints the raw values even outside --debug (used by the
     --preflight flag); otherwise they only show up under --debug.  A failure is
     always printed to stderr and shown in a message box (unless the
-    CRT_PREFLIGHT_NO_DIALOG test override is set), because the silent launcher
+    RETRO_PREFLIGHT_NO_DIALOG test override is set), because the silent launcher
     hides stderr completely.
     """
     results = preflight_results()
@@ -383,7 +383,7 @@ def run_preflight(report: bool = False, dialog: bool = True) -> int:
         _dbg('preflight %s: %s (%s)'
              % (name, 'present' if ok else 'MISSING', detail))
         if report:
-            print('[crt] preflight %s: %s  %s'
+            print('[retro] preflight %s: %s  %s'
                   % (name, 'present' if ok else 'MISSING', detail), flush=True)
     if results['webview2'][0] and results['dotnet'][0]:
         return 0
@@ -516,7 +516,7 @@ def _downscale(img, size: int):
 
 
 def make_icon_image(size: int = 0):
-    """The CRT-MEDIA tray icon: an old CRT monitor, drawn at ``size`` px.
+    """The RETRO-CONTROLLER tray icon: an old CRT monitor, drawn at ``size`` px.
 
     ``size`` 0 (the default) means the size the notification area actually
     shows - see :func:`_tray_icon_size`.  Returns an RGBA ``PIL.Image``
@@ -1175,7 +1175,7 @@ class Widget:
         """Runs on a pywebview worker thread once the GUI loop is up."""
         try:
             if not self.win.events.loaded.wait(30):
-                print('[crt] page did not load within 30s', file=sys.stderr)
+                print('[retro] page did not load within 30s', file=sys.stderr)
                 self.force_quit()
                 return
 
@@ -1187,16 +1187,16 @@ class Widget:
             want_w, want_h = self._want_view
             settled = self._settle_viewport(want_w, want_h)
             if settled is None:
-                print('[crt] viewport never settled at %dx%d' % (want_w, want_h),
+                print('[retro] viewport never settled at %dx%d' % (want_w, want_h),
                       file=sys.stderr)
             else:
-                print('[crt] viewport settled at %dx%d' % settled, flush=True)
+                print('[retro] viewport settled at %dx%d' % settled, flush=True)
 
             # tell the page to (re)compute its proportional CSS zoom now that
             # the physical size is final (it also recomputes on every resize)
             try:
                 self.win.evaluate_js(
-                    'window.__crtApplyZoom && window.__crtApplyZoom()')
+                    'window.__retroApplyZoom && window.__retroApplyZoom()')
             except Exception:
                 pass
 
@@ -1211,13 +1211,13 @@ class Widget:
                 self._geometry_ready.set()
                 self.save_window_geometry()
             else:
-                print('[crt] geometry not verified at %dx%d; leaving '
+                print('[retro] geometry not verified at %dx%d; leaving '
                       'position.json untouched' % (want_w, want_h),
                       file=sys.stderr)
 
             # keep the saved position fresh while the user drags
             threading.Thread(target=self._position_watcher, daemon=True).start()
-            print('[crt] widget ready: %s' % WINDOW_TITLE, flush=True)
+            print('[retro] widget ready: %s' % WINDOW_TITLE, flush=True)
         except Exception:
             traceback.print_exc()
             self.force_quit()
@@ -1226,9 +1226,9 @@ class Widget:
     def start_tray(self) -> None:
         import pystray
         self.icon = pystray.Icon(
-            'crt-media-widget',
+            'retro-controller',
             make_icon_image(),
-            'CRT-MEDIA',
+            'RETRO-CONTROLLER',
             pystray.Menu(
                 pystray.MenuItem('Always on top',
                                  self._tray_always_on_top,
@@ -1242,7 +1242,7 @@ class Widget:
             ),
         )
         self.icon.run_detached()
-        print('[crt] tray icon started', flush=True)
+        print('[retro] tray icon started', flush=True)
 
     def _tray_always_on_top(self, icon, item) -> None:
         self.toggle_always_on_top()
@@ -1328,7 +1328,7 @@ def _make_media():
 
 
 def _window_icon():
-    """Absolute path to assets/crt-media-widget.ico, or None.
+    """Absolute path to assets/retro-controller.ico, or None.
 
     pywebview only honours ``icon`` when the file really exists (a false path
     falls back to pythonw.exe's icon with nothing raised), so the existence is
@@ -1426,7 +1426,7 @@ def _enable_debug_channel(port: int) -> None:
         import webview
         webview.settings['REMOTE_DEBUGGING_PORT'] = int(port)
         webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
-        print('[crt] debug: remote debugging on http://127.0.0.1:%d' % port, flush=True)
+        print('[retro] debug: remote debugging on http://127.0.0.1:%d' % port, flush=True)
     except Exception:
         traceback.print_exc()
 
@@ -1450,21 +1450,21 @@ def main(argv=None) -> int:
     if preflight != 0:
         return preflight
     if '--preflight' in argv:
-        print('[crt] preflight: every required Windows component is present',
+        print('[retro] preflight: every required Windows component is present',
               flush=True)
         return 0
 
     if debug:
         try:
-            port = int(os.environ.get('CRT_DEBUG_PORT', '9222'))
+            port = int(os.environ.get('RETRO_DEBUG_PORT', '9222'))
         except Exception:
             port = 9222
         _enable_debug_channel(port)
 
     mutex = acquire_single_instance()
     if mutex is None:
-        msg = 'CRT-MEDIA is already running (look for its tray icon).'
-        print('[crt] ' + msg, file=sys.stderr)
+        msg = 'RETRO-CONTROLLER is already running (look for its tray icon).'
+        print('[retro] ' + msg, file=sys.stderr)
         if not debug:
             message_box(msg)
         return 1
@@ -1484,7 +1484,7 @@ def main(argv=None) -> int:
         kernel32.CloseHandle(mutex)
     except Exception:
         pass
-    print('[crt] exited cleanly', flush=True)
+    print('[retro] exited cleanly', flush=True)
     return 0
 
 

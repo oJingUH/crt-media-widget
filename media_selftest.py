@@ -322,7 +322,7 @@ def run_controls(controller, base_state):
     result["select"]["live_sessions"] = live_ids
     result["select"]["target_aumid"] = target_aumid
     if target_aumid:
-        bogus = "crt-selftest-nonexistent-app!Nope"
+        bogus = "retro-selftest-nonexistent-app!Nope"
         result["select"]["select_bogus_return"] = controller.select_session(bogus)
 
         fell_back, _waited, hit = poll(

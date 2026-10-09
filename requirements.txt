@@ -1,4 +1,4 @@
-# CRT-MEDIA // runtime dependencies
+# RETRO-CONTROLLER // runtime dependencies
 #
 # Exact pins, frozen from the venv the widget is developed against
 # (Windows x64, Python 3.14). Every entry below has a binary wheel for

@@ -448,7 +448,7 @@ def check_helpers(report, failures):
 
     path_round_trip = None
     try:
-        probe_path = os.path.join(SCRATCH, "crt-art-probe.png")
+        probe_path = os.path.join(SCRATCH, "retro-art-probe.png")
         url = pathlib.Path(probe_path).as_uri()
         path_round_trip = {
             "url": url,
@@ -1183,7 +1183,7 @@ def check_art(report, failures):
     from PIL import Image
 
     section = report["checks"]["art"] = {}
-    workdir = os.path.join(SCRATCH, "crt-art-%d" % os.getpid())
+    workdir = os.path.join(SCRATCH, "retro-art-%d" % os.getpid())
     os.makedirs(workdir, exist_ok=True)
 
     def write_png(name, size, colour):

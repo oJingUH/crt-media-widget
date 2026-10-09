@@ -1,4 +1,4 @@
-# CRT media widget — frozen interface contract
+# Retro Controller — frozen interface contract
 
 This file is the single source of truth for names and shapes. Every builder codes
 against **this**, never against another builder's in-flight file. If something here
@@ -179,7 +179,7 @@ window.pywebview.api.quit_app()
 3. Phosphor bloom: layered `text-shadow` using `--glow` on all text.
 4. Chromatic fringe: magenta/cyan ±1px on the header only, low opacity.
 5. Subtle flicker: opacity 0.97 to 1.0 over about 3.5s, barely perceptible.
-6. Boot sequence: about 1.6s of typed lines (`CRT-MEDIA v1.0`, `PHOSPHOR P1 ... OK`,
+6. Boot sequence: about 1.6s of typed lines (`RETRO-CONTROLLER v1.2`, `PHOSPHOR P1 ... OK`,
    `SMTC LINK ... OK`, `AUDIO BUS ... OK`), click-to-skip, must not delay the first poll.
 7. Blinking block cursor after the status line.
 8. Album art block: pixelated downscale, green duotone treatment, CSS frame with corner ticks.

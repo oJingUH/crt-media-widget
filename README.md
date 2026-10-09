@@ -1,4 +1,4 @@
-# CRT-MEDIA // desktop media widget
+# RETRO-CONTROLLER // desktop media widget
 
 A small always-on-top, frameless desktop widget that shows what is playing on
 this machine — from Spotify, a browser tab, Media Player, anything that
@@ -7,7 +7,7 @@ art, a segmented progress bar, transport controls and system volume.
 
 ```
 +------------------------------------------+
-|  CRT-MEDIA // MEDIA CONTROL         v1.0 |
+|  RETRO-CONTROLLER // MEDIA CONTROL         v1.0 |
 |  SRC:SPOTIFY  VOL:62%  LINK:OK  CLK:07:41|
 |  [ album art ]   TITLE / ARTIST / ALBUM  |
 |  [==============>----------]  3:32 / 4:57|
@@ -20,7 +20,7 @@ art, a segmented progress bar, transport controls and system volume.
 * **Click-through** mode so it never blocks what is behind it — and it is
   always recoverable from the tray.
 * **Remembers where you dragged it** (a JSON file under
-  `%LOCALAPPDATA%\crt-media-widget\`).
+  `%LOCALAPPDATA%\retro-controller\`).
 * **Resizable** — drag the bracket in the bottom-right corner; the whole panel
   scales with the window (260x290 up to 900x1000) and the size is remembered too.
 * **Close button** — the X in the header shuts it down exactly like **Quit** in
@@ -74,7 +74,7 @@ machine: it reports the distribution, your session type, the apt bindings, the
 MPRIS players currently on the bus and your volume backend, then ends with a
 verdict. Run it first, especially if anything below is unfamiliar.
 
-After setup, launch it from the applications menu (search **CRT-MEDIA**), with
+After setup, launch it from the applications menu (search **RETRO-CONTROLLER**), with
 `./linux/run.sh`, or let the autostart entry that setup installs bring it up at
 login. `./linux/run.sh --debug` keeps a log on screen and
 `./linux/run.sh --preflight` prints the component report.
@@ -98,13 +98,13 @@ and a Linux troubleshooting table are in **[linux/LINUX.md](linux/LINUX.md)**.
 ### The portable build — no Python required (recommended)
 
 Take the portable zip from the releases page —
-<https://github.com/oJingUH/crt-media-widget/releases/latest> — **extract it
+<https://github.com/oJingUH/retro-controller/releases/latest> — **extract it
 anywhere** (Desktop, `C:\Tools`, a USB stick), and double-click:
 
 | Double-click | What it does |
 |---|---|
-| **`CRT-MEDIA.vbs`** | Normal, silent start — no console window. |
-| **`CRT-MEDIA.bat`** | Same widget, but keeps a console open carrying the log. Use this one when something misbehaves. |
+| **`RETRO-CONTROLLER.vbs`** | Normal, silent start — no console window. |
+| **`RETRO-CONTROLLER.bat`** | Same widget, but keeps a console open carrying the log. Use this one when something misbehaves. |
 
 The extracted folder carries its private copy of CPython and every dependency,
 so nothing is installed and no Python on the machine is touched. Read
@@ -117,11 +117,11 @@ To build that bundle yourself from a checkout:
 .venv\Scripts\python.exe tools\build_portable.py
 ```
 
-It produces `dist\CRT-MEDIA-<VERSION>-portable\` and the matching `.zip` — with
-`VERSION` holding `1.0.1` that is `dist\CRT-MEDIA-1.0.1-portable.zip` — and
+It produces `dist\RETRO-CONTROLLER-<VERSION>-portable\` and the matching `.zip` — with
+`VERSION` holding `1.2.0` that is `dist\RETRO-CONTROLLER-1.2.0-portable.zip` — and
 prints the archive's size and sha256. The version comes from the `VERSION` file
 at the project root (one file, so the folder, the zip and the docs can never
-disagree); `--version 1.0.2` overrides it for a one-off build. It downloads the
+disagree); `--version 1.2.1` overrides it for a one-off build. It downloads the
 CPython embeddable runtime from python.org, installs the wheels into it, and
 refuses to produce a bundle unless its own interpreter can import every
 dependency and read a live media session.
@@ -165,7 +165,7 @@ exits instead of stacking another window — use the tray icon of the first one.
 
 1. Press `Win+R`, type `shell:startup`, press Enter. The Startup folder opens.
 2. Right-click the silent launcher — **`run.vbs`** in the project folder, or
-   **`CRT-MEDIA.vbs`** inside the extracted portable folder — → **Send to** →
+   **`RETRO-CONTROLLER.vbs`** inside the extracted portable folder — → **Send to** →
    **Desktop (create shortcut)** (or right-click → **Create shortcut**, then
    move the shortcut into the Startup folder).
 3. Leave the shortcut in the Startup folder. Next sign-in the widget appears
@@ -282,7 +282,7 @@ both are present, 3 when one is not.
 `.vbs` that starts a bundled `python.exe` is exactly the shape of thing
 SmartScreen and some antivirus products stop to ask about, and a downloaded zip
 carries the "mark of the web". Choose **More info** → **Run anyway** on the
-SmartScreen prompt, or start the widget with the **`CRT-MEDIA.bat`** launcher
+SmartScreen prompt, or start the widget with the **`RETRO-CONTROLLER.bat`** launcher
 inside the portable folder (or `run.cmd` from a checkout) — same widget, with a
 visible console. For the record the widget installs nothing, needs no admin
 rights and writes only its window position under `%LOCALAPPDATA%`; that does not
@@ -307,10 +307,10 @@ corrupted remembered size.
 The WebView2 runtime is missing. Install the free *Evergreen Standalone
 Installer* from
 <https://developer.microsoft.com/microsoft-edge/webview2/>, then start the
-widget again. If you are using the portable build, run `CRT-MEDIA.bat` instead
-of `CRT-MEDIA.vbs` first — it keeps a console with the error text on screen.
+widget again. If you are using the portable build, run `RETRO-CONTROLLER.bat` instead
+of `RETRO-CONTROLLER.vbs` first — it keeps a console with the error text on screen.
 
-**`CRT-MEDIA.vbs` / `run.vbs` does nothing at all.**
+**`RETRO-CONTROLLER.vbs` / `run.vbs` does nothing at all.**
 It raises a dialog box rather than failing silently, so look for a message
 window: on the from-source route it means `.venv` does not exist yet and you
 need to double-click `setup.cmd` first; on the portable route it means the
@@ -382,12 +382,12 @@ environment by hand:
 Build output (never committed — `dist/` is in `.gitignore`):
 
 ```
-dist\CRT-MEDIA-<VERSION>-portable\       # the runnable bundle
-dist\CRT-MEDIA-<VERSION>-portable.zip    # the distributable
+dist\RETRO-CONTROLLER-<VERSION>-portable\       # the runnable bundle
+dist\RETRO-CONTROLLER-<VERSION>-portable.zip    # the distributable
 ```
 
 Configuration written at runtime:
 
 ```
-%LOCALAPPDATA%\crt-media-widget\position.json   # last window position and size
+%LOCALAPPDATA%\retro-controller\position.json   # last window position and size
 ```

@@ -1,6 +1,6 @@
 @echo off
 rem ===========================================================================
-rem  CRT-MEDIA // setup - one-time, from-source install
+rem  RETRO-CONTROLLER // setup - one-time, from-source install
 rem
 rem  Double-click this file. It needs no administrator rights, it makes no
 rem  registry changes, and it does everything inside the project folder.
@@ -22,10 +22,10 @@ rem
 rem  Optional arguments:
 rem    --recreate   delete and rebuild .venv from scratch
 rem    --nopause    never wait for a keypress (for scripted runs; the same can
-rem                 be done by setting the environment variable CRT_SETUP_NOPAUSE)
+rem                 be done by setting the environment variable RETRO_SETUP_NOPAUSE)
 rem ===========================================================================
 setlocal EnableExtensions
-title CRT-MEDIA setup
+title RETRO-CONTROLLER setup
 
 set "HERE=%~dp0"
 set "VENV=%HERE%.venv"
@@ -37,7 +37,7 @@ set "MISSING="
 
 set "NOPAUSE="
 set "RECREATE="
-if defined CRT_SETUP_NOPAUSE set "NOPAUSE=1"
+if defined RETRO_SETUP_NOPAUSE set "NOPAUSE=1"
 if "%~1"=="" goto :argsdone
 for %%A in (%*) do (
   if /I "%%A"=="--recreate" set "RECREATE=1"
@@ -47,7 +47,7 @@ for %%A in (%*) do (
 :argsdone
 
 echo ===========================================================================
-echo  CRT-MEDIA // setup
+echo  RETRO-CONTROLLER // setup
 echo ===========================================================================
 echo  project   %HERE%
 echo.
@@ -58,7 +58,7 @@ echo.
 if not exist "%REQ%" (
   echo [FAIL] requirements.txt is missing from
   echo        %REQ%
-  echo        Run setup.cmd from inside the CRT-MEDIA project folder.
+  echo        Run setup.cmd from inside the RETRO-CONTROLLER project folder.
   goto :failuse
 )
 
@@ -91,9 +91,9 @@ echo        During the install, tick "Add python.exe to PATH", then run
 echo        setup.cmd again.
 echo.
 echo        If you do not want to install Python at all, use the portable
-echo        build instead: download CRT-MEDIA-1.0.0-portable.zip from
-echo            https://github.com/oJingUH/crt-media-widget/releases/latest
-echo        extract it anywhere and double-click CRT-MEDIA.vbs inside it.
+echo        build instead: download RETRO-CONTROLLER-1.2.0-portable.zip from
+echo            https://github.com/oJingUH/retro-controller/releases/latest
+echo        extract it anywhere and double-click RETRO-CONTROLLER.vbs inside it.
 goto :failuse
 
 :havepython
@@ -110,7 +110,7 @@ echo        %PYEXE%
 
 %PYLAUNCH% -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=(3,11) else 1)"
 if errorlevel 1 (
-  echo [FAIL] Python %PYVER% is too old. CRT-MEDIA needs 3.11 or newer;
+  echo [FAIL] Python %PYVER% is too old. RETRO-CONTROLLER needs 3.11 or newer;
   echo        3.14 is what it is developed and tested against. Python 3.10
   echo        cannot work: pythonnet publishes no wheel for it.
   goto :failuse
@@ -207,7 +207,7 @@ if defined MISSING goto :failverify
 echo        imports OK: webview, winrt.windows.media.control, pycaw, pystray, PIL
 echo.
 echo ===========================================================================
-echo  SUCCESS - CRT-MEDIA is set up and ready to run.
+echo  SUCCESS - RETRO-CONTROLLER is set up and ready to run.
 echo ===========================================================================
 echo.
 echo  Start the widget now with either of these, from this folder:

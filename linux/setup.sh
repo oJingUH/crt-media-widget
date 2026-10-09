@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ===========================================================================
-#  CRT-MEDIA // setup (Linux) - one-time, from-source install
+#  RETRO-CONTROLLER // setup (Linux) - one-time, from-source install
 #
 #  Run it from the project folder:
 #
@@ -38,8 +38,8 @@ ROOT="$(cd "$HERE/.." && pwd)"
 VENV="$ROOT/.venv"
 PY="$VENV/bin/python3"
 REQ="$HERE/requirements-linux.txt"
-DESKTOP_IN="$HERE/assets/crt-media-widget.desktop.in"
-ICON_SVG="$HERE/assets/crt-media-widget.svg"
+DESKTOP_IN="$HERE/assets/retro-controller.desktop.in"
+ICON_SVG="$HERE/assets/retro-controller.svg"
 
 APPS_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
@@ -88,7 +88,7 @@ say() { printf '%s\n' "$1"; }
 head2() { printf '\n[%s] %s\n' "$1" "$2"; }
 
 printf '===========================================================================\n'
-printf ' CRT-MEDIA // setup (Linux)\n'
+printf ' RETRO-CONTROLLER // setup (Linux)\n'
 printf '===========================================================================\n'
 printf ' project   %s\n' "$ROOT"
 printf ' venv      %s\n' "$VENV"
@@ -97,7 +97,7 @@ printf ' the only system-wide step is the apt package check below.\n'
 
 [[ -f "$REQ" ]] || die "linux/requirements-linux.txt is missing from
        $REQ
-       Run setup.sh from inside the CRT-MEDIA project folder." \
+       Run setup.sh from inside the RETRO-CONTROLLER project folder." \
       "cd $ROOT && ./linux/setup.sh"
 [[ -f "$DESKTOP_IN" ]] || die "the desktop entry template is missing: $DESKTOP_IN"
 [[ -f "$ICON_SVG" ]] || die "the icon is missing: $ICON_SVG"
@@ -305,7 +305,7 @@ fi
 # The Exec line is the venv's python plus the app, both absolute and quoted so
 # a path with spaces still works.
 EXEC_LINE="\"$PY\" \"$HERE/app_linux.py\""
-DESKTOP_OUT="$APPS_DIR/crt-media-widget.desktop"
+DESKTOP_OUT="$APPS_DIR/retro-controller.desktop"
 
 sed "s|@EXEC@|${EXEC_LINE}|" "$DESKTOP_IN" > "$DESKTOP_OUT" \
   || die "could not write $DESKTOP_OUT"
@@ -316,13 +316,13 @@ if grep -q '@EXEC@' "$DESKTOP_OUT"; then
 fi
 
 chmod 644 "$DESKTOP_OUT"
-install -m 644 "$ICON_SVG" "$ICON_DIR/crt-media-widget.svg"
+install -m 644 "$ICON_SVG" "$ICON_DIR/retro-controller.svg"
 say "       menu entry  $DESKTOP_OUT"
-say "       icon        $ICON_DIR/crt-media-widget.svg"
+say "       icon        $ICON_DIR/retro-controller.svg"
 
 if [[ $AUTOSTART -eq 1 ]]; then
-  cp -f "$DESKTOP_OUT" "$AUTOSTART_DIR/crt-media-widget.desktop"
-  say "       autostart   $AUTOSTART_DIR/crt-media-widget.desktop"
+  cp -f "$DESKTOP_OUT" "$AUTOSTART_DIR/retro-controller.desktop"
+  say "       autostart   $AUTOSTART_DIR/retro-controller.desktop"
 else
   say "       autostart   skipped (--no-autostart)"
 fi
@@ -340,16 +340,16 @@ fi
 
 # ---------------------------------------------------------------------------
 printf '\n===========================================================================\n'
-printf ' SUCCESS - CRT-MEDIA is set up and ready to run.\n'
+printf ' SUCCESS - RETRO-CONTROLLER is set up and ready to run.\n'
 printf '===========================================================================\n\n'
 printf ' Start the widget now with:\n\n'
 printf '     ./linux/run.sh\n\n'
-printf ' or pick "CRT-MEDIA" from the applications menu. From this point on it\n'
+printf ' or pick "RETRO-CONTROLLER" from the applications menu. From this point on it\n'
 printf ' also starts automatically when you log in%s.\n' \
   "$( [[ $AUTOSTART -eq 1 ]] && printf '' || printf ' (disabled by --no-autostart)' )"
 printf '\n If something misbehaves, this keeps a log on screen:\n\n'
 printf '     ./linux/run.sh --debug\n\n'
-printf ' Its state lives in ~/.local/state/crt-media-widget/ (widget.log and\n'
+printf ' Its state lives in ~/.local/state/retro-controller/ (widget.log and\n'
 printf ' geometry.json). Remove the autostart entry to stop it starting at login:\n\n'
-printf '     rm -f ~/.config/autostart/crt-media-widget.desktop\n\n'
+printf '     rm -f ~/.config/autostart/retro-controller.desktop\n\n'
 exit 0

@@ -1,4 +1,4 @@
-# CRT-MEDIA // Linux runtime dependencies (the pip side only)
+# RETRO-CONTROLLER // Linux runtime dependencies (the pip side only)
 #
 # Install with the venv's own pip, from the repo root:
 #

@@ -1,5 +1,5 @@
 /* ============================================================
-   CRT-MEDIA // app.js
+   RETRO-CONTROLLER // app.js
    Standalone phosphor widget.  Live bridge = window.pywebview.api
    (provided by app.py).  With no bridge, or with ?demo=1, the page
    renders entirely from a built-in DEMO_STATE and reports LINK:DEMO.
@@ -643,7 +643,7 @@
   }
 
   /* ---------------------------------------------------------- boot (6) */
-  var BOOT_LINES = ['CRT-MEDIA v1.0', 'PHOSPHOR P1 ... OK', 'SMTC LINK ... OK', 'AUDIO BUS ... OK'];
+  var BOOT_LINES = ['RETRO-CONTROLLER v1.2', 'PHOSPHOR P1 ... OK', 'SMTC LINK ... OK', 'AUDIO BUS ... OK'];
   var bootStarted = nowMs();
   var bootDone = false;
 
@@ -1027,7 +1027,7 @@
           return a ? a.textContent : null;
         })()
       },
-      build: 'CRT-MEDIA ui-1'
+      build: 'RETRO-CONTROLLER ui-1'
     };
   }
 
@@ -1056,7 +1056,7 @@
     } catch (e) { /* no CSS zoom support: the layout just stays at design size */ }
   }
   /* app.py calls this once after its startup viewport sizing settles */
-  window.__crtApplyZoom = applyZoom;
+  window.__retroApplyZoom = applyZoom;
 
   /* ---------------------------------------------------------- boot up */
   function start() {

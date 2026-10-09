@@ -1,13 +1,13 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=CRT-MEDIA
+Name=RETRO-CONTROLLER
 GenericName=Media Control Widget
 Comment=Always-on-top CRT-styled media control panel
 Exec=@EXEC@
-Icon=crt-media-widget
+Icon=retro-controller
 Terminal=false
 Categories=AudioVideo;Audio;Player;Utility;
 Keywords=media;player;widget;crt;now playing;
 StartupNotify=false
-StartupWMClass=CRT-MEDIA
+StartupWMClass=RETRO-CONTROLLER

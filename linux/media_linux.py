@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""media_linux.py - Linux media control layer for the CRT media widget.
+"""media_linux.py - Linux media control layer for the Retro Controller.
 
 The Linux twin of ``media.py``: same frozen ``MediaController`` surface (see
 CONTRACT.md), same 19-key state object, but speaking MPRIS over the session
@@ -178,8 +178,8 @@ VANISH_GRACE_S = 3.0           # how long a vanished player still shows "closed"
 US_PER_SECOND = 1_000_000
 
 # One-line diagnostics for otherwise-silent best-effort failures, only when a
-# debug/verbose flag is on: `--debug` or the CRT_DEBUG environment variable.
-_DEBUG = bool(os.environ.get("CRT_DEBUG")) or ("--debug" in sys.argv)
+# debug/verbose flag is on: `--debug` or the RETRO_DEBUG environment variable.
+_DEBUG = bool(os.environ.get("RETRO_DEBUG")) or ("--debug" in sys.argv)
 
 
 def _debug(message: str) -> None:
@@ -187,7 +187,7 @@ def _debug(message: str) -> None:
     if not _DEBUG:
         return
     try:
-        print("[crt-media-linux] %s" % message, file=sys.stderr, flush=True)
+        print("[retro-media-linux] %s" % message, file=sys.stderr, flush=True)
     except Exception:
         pass
 
@@ -495,7 +495,7 @@ def _fetch_url(url: str) -> "tuple[bytes, str] | None":
             return raw, (mime or _sniff_mime(raw))
         if url.startswith(("http://", "https://")):
             request = urllib.request.Request(
-                url, headers={"User-Agent": "crt-media-widget/1.0"}
+                url, headers={"User-Agent": "retro-controller/1.0"}
             )
             with urllib.request.urlopen(request, timeout=FETCH_TIMEOUT) as response:
                 raw = response.read(ART_MAX_BYTES + 1)
@@ -1075,7 +1075,7 @@ def _run_sync(coro_factory, timeout: float):
         except BaseException as exc:  # noqa: BLE001 - re-raised by the caller
             box["error"] = exc
 
-    thread = threading.Thread(target=body, name="crt-bus-probe", daemon=True)
+    thread = threading.Thread(target=body, name="retro-bus-probe", daemon=True)
     thread.start()
     thread.join(timeout + 1.0)
     if "error" in box:
@@ -1177,7 +1177,7 @@ class _Worker(threading.Thread):
     """Owns the asyncio loop, the D-Bus connection and the volume backend."""
 
     def __init__(self, owner: "MediaController", transport, volume: VolumeBackend) -> None:
-        super().__init__(name="crt-media-linux-worker", daemon=True)
+        super().__init__(name="retro-media-linux-worker", daemon=True)
         self._owner = owner
         self._transport = transport
         self._volume = volume
