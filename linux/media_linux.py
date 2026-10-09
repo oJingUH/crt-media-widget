@@ -280,11 +280,46 @@ def _short_error(exc: BaseException) -> str:
     return msg[:300]
 
 
+def _unwrap_dbus(value):
+    """Recursively unwrap ``dbus_fast.signature.Variant`` layers.
+
+    ``Properties.Get`` / ``GetAll`` return Variant-boxed values.  Without this,
+    Identity becomes the debug string ``<dbus_fast.signature.Variant ('s',
+    Brave)>``, PlaybackStatus fails ``isinstance(..., str)`` so status stays
+    ``unknown``, and Metadata stays a Variant so title/artist/album are lost.
+    Duck-typed on class name so this module stays importable without dbus_fast.
+    """
+    while True:
+        cls = type(value)
+        if cls.__module__ == "dbus_fast.signature" and cls.__name__ == "Variant":
+            value = value.value
+            continue
+        if cls.__name__ == "Variant" and hasattr(value, "value"):
+            # Broader fallback for renamed modules / vendored copies.
+            try:
+                value = value.value
+            except Exception:
+                break
+            continue
+        break
+    if isinstance(value, dict):
+        out = {}
+        for key, item in value.items():
+            out[str(key) if not isinstance(key, str) else key] = _unwrap_dbus(item)
+        return out
+    if isinstance(value, list):
+        return [_unwrap_dbus(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_unwrap_dbus(item) for item in value)
+    return value
+
+
 def _us_to_seconds(value) -> "float | None":
     """MPRIS microsecond int -> float seconds, or None when unusable.
 
     Matches the unit ``media.py`` emits for position/duration (float seconds).
     """
+    value = _unwrap_dbus(value)
     if value is None:
         return None
     try:
@@ -306,16 +341,21 @@ def _sane_duration(us_value) -> "float | None":
 
 def _text(value) -> "str | None":
     """Normalize a D-Bus string-ish value to a stripped str or None."""
+    value = _unwrap_dbus(value)
     if value is None:
         return None
     try:
         text = str(value).strip()
     except Exception:
         return None
+    # Never surface a leaked Variant repr as a display string.
+    if text.startswith("<dbus_fast.signature.Variant"):
+        return None
     return text or None
 
 
 def _as_int(value) -> "int | None":
+    value = _unwrap_dbus(value)
     if value is None:
         return None
     try:
@@ -325,6 +365,7 @@ def _as_int(value) -> "int | None":
 
 
 def _as_bool(value) -> bool:
+    value = _unwrap_dbus(value)
     return bool(value) if value is not None else False
 
 
@@ -335,6 +376,7 @@ def join_artists(value) -> "str | None":
     string must never be assumed.  Lists are joined with ", "; a single string
     is passed through; an empty result is None.
     """
+    value = _unwrap_dbus(value)
     if value is None:
         return None
     if isinstance(value, str):
@@ -342,7 +384,7 @@ def join_artists(value) -> "str | None":
     if isinstance(value, (bytes, bytearray, dict)):
         return None
     try:
-        parts = [str(item).strip() for item in value]
+        parts = [str(_unwrap_dbus(item)).strip() for item in value]
     except Exception:
         return None
     parts = [part for part in parts if part]
@@ -351,6 +393,7 @@ def join_artists(value) -> "str | None":
 
 def map_status(value) -> str:
     """MPRIS PlaybackStatus -> contract status (never raises)."""
+    value = _unwrap_dbus(value)
     if not isinstance(value, str):
         return "unknown"
     return _STATUS_MAP.get(value.strip().lower(), "unknown")
@@ -648,8 +691,13 @@ class MprisTransport:
         self._check(reply)
         if not reply.body:
             return {}
-        value = reply.body[0]
-        return dict(value) if value else {}
+        value = _unwrap_dbus(reply.body[0])
+        if not value:
+            return {}
+        try:
+            return dict(value)
+        except Exception:
+            return {}
 
     async def _get_prop(self, dest: str, iface: str, name: str, timeout: float):
         from dbus_fast import Message  # noqa: PLC0415
@@ -667,7 +715,7 @@ class MprisTransport:
         self._check(reply)
         if not reply.body:
             return None
-        return reply.body[0]
+        return _unwrap_dbus(reply.body[0])
 
     async def _has_owner(self, bus, bus_name: str, timeout: float) -> bool:
         """True when the well-known name currently has an owner."""
@@ -703,10 +751,15 @@ class MprisTransport:
             base = {}
 
         player = await self._get_all(bus_name, IFACE_PLAYER, timeout)
-        metadata = player.get("Metadata") or {}
+        # GetAll already unwraps Variants, but keep this defensive for injected
+        # transports / partial failures.
+        metadata = _unwrap_dbus(player.get("Metadata")) or {}
         try:
             metadata = dict(metadata)
         except Exception:
+            metadata = {}
+        metadata = _unwrap_dbus(metadata)
+        if not isinstance(metadata, dict):
             metadata = {}
 
         position_us = player.get("Position")
@@ -742,15 +795,33 @@ class MprisTransport:
         timeout: float = CALL_TIMEOUT,
     ) -> None:
         """Call a method on ``org.mpris.MediaPlayer2.Player``."""
-        from dbus_fast import Message, ObjectPath  # noqa: PLC0415
+        from dbus_fast import Message  # noqa: PLC0415
 
         bus = self._require()
         body = list(args)
-        if "o" in signature:
-            body = [
-                ObjectPath(str(item)) if isinstance(item, str) else item
-                for item in body
-            ]
+        # Object paths: dbus-fast 5.x dropped the ObjectPath wrapper and wants a
+        # plain str with signature "o".  Older releases exported ObjectPath from
+        # dbus_fast / dbus_fast.signature.  Import it ONLY when needed so a
+        # missing ObjectPath cannot break no-arg calls (Play/Pause/Next/...).
+        if "o" in (signature or ""):
+            object_path_ctor = None
+            for import_path in (
+                ("dbus_fast", "ObjectPath"),
+                ("dbus_fast.signature", "ObjectPath"),
+            ):
+                try:
+                    mod = __import__(import_path[0], fromlist=[import_path[1]])
+                    object_path_ctor = getattr(mod, import_path[1])
+                    break
+                except Exception:
+                    continue
+            if object_path_ctor is not None:
+                body = [
+                    object_path_ctor(str(item)) if isinstance(item, str) else item
+                    for item in body
+                ]
+            else:
+                body = [str(item) if isinstance(item, str) else item for item in body]
         message = Message(
             destination=bus_name,
             path=PLAYER_PATH,
@@ -1393,6 +1464,11 @@ class _Worker(threading.Thread):
         # Anchor t_ms to the timeline read so the UI extrapolates from the same
         # instant the position was sampled.
         state["t_ms"] = _now_ms()
+        # Surface the last transport command failure (play/pause/next) so the
+        # UI/debug path is not silent when Chromium no-ops or rejects a call.
+        err = getattr(self._owner, "_last_transport_error", None)
+        if err and not state.get("error"):
+            state["error"] = err
         return state
 
     # -- commands ----------------------------------------------------------
@@ -1424,16 +1500,50 @@ class _Worker(threading.Thread):
                 ),
                 CALL_TIMEOUT + 0.3,
             )
+            self._owner._last_transport_error = None
             return True
         except Exception as exc:
-            _debug("%s on %s failed: %s" % (member, name, _short_error(exc)))
+            err = _short_error(exc)
+            self._owner._last_transport_error = "%s on %s failed: %s" % (member, name, err)
+            _debug("%s on %s failed: %s" % (member, name, err))
             return False
+
+    async def _status_of(self, name: str) -> str:
+        """Best-effort PlaybackStatus for the selected player ('playing'/'paused'/...)."""
+        try:
+            raw = await asyncio.wait_for(
+                self._transport.read_player(name, timeout=PER_PLAYER_TIMEOUT),
+                PER_PLAYER_TIMEOUT + 0.25,
+            )
+        except Exception:
+            return "unknown"
+        if not isinstance(raw, dict):
+            return "unknown"
+        return map_status(raw.get("status"))
 
     async def op_play_pause(self) -> bool:
         name = await self._selected_name()
         if not name:
             return False
-        return await self._invoke(name, "PlayPause")
+        # Chromium/Brave (and some other web players) often advertise MPRIS but
+        # implement Play()/Pause() while PlayPause() is a silent no-op or
+        # missing. Prefer the explicit methods from current status; fall back
+        # to PlayPause for players that only implement the toggle.
+        status = await self._status_of(name)
+        if status == "playing":
+            if await self._invoke(name, "Pause"):
+                return True
+            return await self._invoke(name, "PlayPause")
+        if status in ("paused", "stopped"):
+            if await self._invoke(name, "Play"):
+                return True
+            return await self._invoke(name, "PlayPause")
+        # Unknown status: try toggle first, then both directions.
+        if await self._invoke(name, "PlayPause"):
+            return True
+        if await self._invoke(name, "Pause"):
+            return True
+        return await self._invoke(name, "Play")
 
     async def op_next(self) -> bool:
         name = await self._selected_name()
@@ -1533,6 +1643,7 @@ class MediaController:
         self._fetcher = _fetch_url
         self._sel_lock = threading.Lock()
         self._desired_app_id = ""
+        self._last_transport_error: "str | None" = None
         self._transport = transport if transport is not None else MprisTransport()
         self._volume = volume if volume is not None else _default_volume()
         self._worker = _Worker(self, self._transport, self._volume)

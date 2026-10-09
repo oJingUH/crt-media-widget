@@ -190,14 +190,15 @@ body {
   letter-spacing: 0;
 }
 
-/* header right group: version tag + close control ---------------------- */
+/* header right group: version tag + window chrome ---------------------- */
 .hdr-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-/* close control: CRT chrome, dim until hovered, then the warning red */
+/* shared CRT chrome for header window controls ------------------------- */
+.hdr-min,
 .hdr-close {
   position: relative;
   flex: 0 0 auto;
@@ -210,6 +211,30 @@ body {
   border-radius: 2px;
   cursor: crosshair;
 }
+
+/* minimize: single phosphor bar */
+.hdr-min .bar {
+  position: absolute;
+  left: 3px;
+  top: 11px;
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+  box-shadow: 0 0 4px var(--glow);
+}
+.hdr-min:hover {
+  color: var(--bright);
+  border-color: var(--base);
+  box-shadow: 0 0 8px var(--glow);
+}
+.hdr-min:hover .bar { box-shadow: 0 0 5px var(--glow); }
+.hdr-min:active {
+  color: var(--bg);
+  background: var(--base);
+  border-color: var(--base);
+}
+
+/* close control: dim until hovered, then the warning red */
 .hdr-close .x { position: absolute; left: 3px; top: 3px; width: 10px; height: 10px; }
 .hdr-close .x::before,
 .hdr-close .x::after {
