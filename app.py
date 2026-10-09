@@ -1271,6 +1271,12 @@ class Widget:
         self._quitting = True
         self._quit.set()
         self.save_window_geometry()          # remember the final size + position
+        # Pause only if something is actively playing; already-paused stays put.
+        try:
+            if self.media is not None:
+                self.media.pause_if_playing()
+        except Exception:
+            pass
         self.stop_tray()
         self.stop_media()
         try:

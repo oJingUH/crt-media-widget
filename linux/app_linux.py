@@ -1062,6 +1062,16 @@ class Widget:
             _log('binding failure at show: %s' % exc)
             self.force_quit()
             return
+        # Window-list icon: do not brand prgname/WM class as CRT-MEDIA.
+        # That matches StartupWMClass on the .desktop entry, Cinnamon then
+        # uses Icon=crt-media-widget (SVG-only) and the panel tile goes blank.
+        # Leaving the interpreter/script identity restores the generic gear.
+        try:
+            win = self._gtk_window()
+            if win is not None:
+                win.set_title(WINDOW_TITLE)
+        except Exception:
+            pass
         try:
             self.install_press_handler()
         except Exception:
@@ -1135,6 +1145,12 @@ class Widget:
                     pystray.MenuItem('Quit', self._tray_quit),
                 ),
             )
+            # Some AppIndicator hosts ignore the constructor title and show the
+            # process/script name instead - force the visible title.
+            try:
+                icon.title = WINDOW_TITLE
+            except Exception:
+                pass
             self.icon = icon
             # pywebview owns the GTK main loop, so the icon runs in its own
             # daemon thread; pystray's own menu callbacks come back through
@@ -1180,6 +1196,15 @@ class Widget:
                 icon_arg = APP_NAME
             indicator = AppIndicator.Indicator.new(
                 APP_NAME, icon_arg, AppIndicator.IndicatorCategory.APPLICATION_STATUS)
+            try:
+                # Hover / accessibility label: CRT-MEDIA, not the script name.
+                indicator.set_title(WINDOW_TITLE)
+            except Exception:
+                pass
+            try:
+                indicator.set_label(WINDOW_TITLE, '')
+            except Exception:
+                pass
             menu = Gtk.Menu.new()
             for label, cb, check in (
                     ('Always on top', self._tray_always_on_top, 'always_on_top'),
@@ -1243,6 +1268,12 @@ class Widget:
             self.save_window_geometry()
         except Exception:
             traceback.print_exc()
+        # Pause only if something is actively playing; already-paused stays put.
+        try:
+            if self.media is not None:
+                self.media.pause_if_playing()
+        except Exception:
+            pass
         self._schedule_destroy()
 
     def _schedule_destroy(self) -> None:
@@ -1439,6 +1470,9 @@ def main(argv=None) -> int:
     widget = Widget()
     try:
         import webview
+        # No GLib.set_prgname('CRT-MEDIA'): that ties the window to the
+        # .desktop StartupWMClass and a blank SVG taskbar tile on Cinnamon.
+        # Tray title is set separately in start_tray().
         widget.setup_window()
         webview.start(widget.job, debug=debug, gui='gtk')
     except MissingBindings as exc:

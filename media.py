@@ -773,6 +773,22 @@ class _Worker(threading.Thread):
             return False
         return bool(await session.try_toggle_play_pause_async())
 
+    async def op_pause_if_playing(self) -> bool:
+        """Pause the current session only when it is playing. Never toggles play."""
+        session = self._current_session()
+        if session is None:
+            return False
+        try:
+            playback = session.get_playback_info()
+        except Exception:
+            playback = None
+        if self._status_of(playback) != "playing":
+            return False
+        try:
+            return bool(await session.try_pause_async())
+        except Exception:
+            return False
+
     async def op_next(self) -> bool:
         session = self._current_session()
         if session is None:
@@ -918,6 +934,13 @@ class MediaController:
     def play_pause(self) -> bool:
         try:
             return bool(self._call(self._worker.op_play_pause))
+        except Exception:
+            return False
+
+    def pause_if_playing(self) -> bool:
+        """Pause only when the current session is playing. Never raises."""
+        try:
+            return bool(self._call(self._worker.op_pause_if_playing))
         except Exception:
             return False
 

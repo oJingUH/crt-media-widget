@@ -11,6 +11,7 @@ Frozen interface (identical names to the contract)::
     get_state() -> dict
     get_art(art_key: str) -> str | None
     play_pause() -> bool
+    pause_if_playing() -> bool                # Pause only when status is playing
     next_track() -> bool
     previous_track() -> bool
     seek_fraction(fraction: float) -> bool
@@ -1545,6 +1546,16 @@ class _Worker(threading.Thread):
             return True
         return await self._invoke(name, "Play")
 
+    async def op_pause_if_playing(self) -> bool:
+        """Pause the selected player only when it is playing. Never toggles play."""
+        name = await self._selected_name()
+        if not name:
+            return False
+        status = await self._status_of(name)
+        if status != "playing":
+            return False
+        return await self._invoke(name, "Pause")
+
     async def op_next(self) -> bool:
         name = await self._selected_name()
         if not name:
@@ -1733,6 +1744,13 @@ class MediaController:
     def play_pause(self) -> bool:
         try:
             return bool(self._call(self._worker.op_play_pause))
+        except Exception:
+            return False
+
+    def pause_if_playing(self) -> bool:
+        """Pause only when the selected session is playing. Never raises."""
+        try:
+            return bool(self._call(self._worker.op_pause_if_playing))
         except Exception:
             return False
 
